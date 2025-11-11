@@ -1,0 +1,9 @@
+# Environment
+.env
+
+# Prisma
+prisma/migrations/
+
+# Build
+dist/
+

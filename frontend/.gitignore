@@ -1,0 +1,11 @@
+# Environment
+.env
+.env.local
+
+# Build
+dist/
+dist-ssr/
+
+# Vite
+.vite/
+

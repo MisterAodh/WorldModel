@@ -1,0 +1,199 @@
+// Prisma schema for Geopolitical Intelligence Workspace
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Country {
+  id                   String                 @id @default(cuid())
+  iso2                 String                 @unique
+  iso3                 String                 @unique
+  name                 String
+  createdAt            DateTime               @default(now())
+  
+  // Relations
+  articleLinks         ArticleCountryLink[]
+  metrics              CountryMetrics[]
+  industries           IndustryShare[]
+  regionMemberships    RegionMembership[]
+  
+  @@index([iso3])
+  @@map("countries")
+}
+
+enum RegionType {
+  LOGICAL_GROUP
+  COUNTRY_SPLIT
+}
+
+model Region {
+  id                   String                 @id @default(cuid())
+  name                 String
+  type                 RegionType             @default(LOGICAL_GROUP)
+  parentId             String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  
+  // Relations
+  parent               Region?                @relation("RegionHierarchy", fields: [parentId], references: [id])
+  children             Region[]               @relation("RegionHierarchy")
+  memberships          RegionMembership[]
+  
+  @@map("regions")
+}
+
+model RegionMembership {
+  id                   String                 @id @default(cuid())
+  regionId             String
+  countryId            String
+  geometryData         Json?                  // For country splits - stores GeoJSON
+  createdAt            DateTime               @default(now())
+  
+  // Relations
+  region               Region                 @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  country              Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  
+  @@unique([regionId, countryId])
+  @@index([regionId])
+  @@index([countryId])
+  @@map("region_memberships")
+}
+
+model Article {
+  id                   String                 @id @default(cuid())
+  url                  String                 @unique
+  title                String
+  source               String?
+  publishDate          DateTime?
+  summary              String?                @db.Text
+  rawMetadata          Json?                  // Parsed content, HTML, etc.
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  
+  // Relations
+  countryLinks         ArticleCountryLink[]
+  
+  @@index([publishDate])
+  @@map("articles")
+}
+
+model ArticleCountryLink {
+  id                   String                 @id @default(cuid())
+  articleId            String
+  countryId            String
+  createdAt            DateTime               @default(now())
+  
+  // Relations
+  article              Article                @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  country              Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  
+  @@unique([articleId, countryId])
+  @@index([articleId])
+  @@index([countryId])
+  @@map("article_country_links")
+}
+
+enum ScopeType {
+  COUNTRY
+  REGION
+}
+
+enum TagCategory {
+  ECONOMIC
+  SOCIAL
+  POLITICAL
+}
+
+model QualitativeTag {
+  id                   String                 @id @default(cuid())
+  scopeType            ScopeType
+  scopeId              String
+  category             TagCategory
+  value                Int                    // -1 = negative, 0 = neutral, 1 = positive
+  source               String                 @default("manual") // manual, ai_suggested, auto_from_rules
+  note                 String?                @db.Text
+  createdAt            DateTime               @default(now())
+  
+  @@index([scopeType, scopeId, category])
+  @@index([createdAt])
+  @@map("qualitative_tags")
+}
+
+model CountryMetrics {
+  id                   String                 @id @default(cuid())
+  countryId            String
+  year                 Int
+  population           BigInt?
+  immigrationRate      Float?                 // Percentage
+  emigrationRate       Float?                 // Percentage
+  murdersPerCapita     Float?                 // Per 100k
+  warDeathsPercent     Float?                 // Percentage of population
+  famineDeathsPercent  Float?                 // Percentage of population
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  
+  // Relations
+  country              Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  
+  @@unique([countryId, year])
+  @@index([countryId])
+  @@index([year])
+  @@map("country_metrics")
+}
+
+model IndustryShare {
+  id                   String                 @id @default(cuid())
+  countryId            String
+  year                 Int
+  industryName         String
+  gdpSharePercent      Float
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  
+  // Relations
+  country              Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  
+  @@unique([countryId, year, industryName])
+  @@index([countryId])
+  @@index([year])
+  @@map("industry_shares")
+}
+
+model Note {
+  id                   String                 @id @default(cuid())
+  scopeType            ScopeType
+  scopeId              String
+  content              String                 @db.Text
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  
+  @@index([scopeType, scopeId])
+  @@map("notes")
+}
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AISuggestion {
+  id                   String                 @id @default(cuid())
+  scopeType            ScopeType
+  scopeId              String
+  suggestionType       String                 // qualitative_tag, metric_update, industry_update, note
+  payload              Json                   // Structured data for the suggestion
+  citations            Json?                  // Array of URLs and snippets
+  status               SuggestionStatus       @default(PENDING)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  
+  @@index([scopeType, scopeId, status])
+  @@index([status])
+  @@map("ai_suggestions")
+}
