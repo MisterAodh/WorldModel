@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { openai } from '../lib/openai.js';
+// import { openai } from '../lib/openai.js';
+import {claude } from '../lib/claude.js';
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 
@@ -61,7 +62,22 @@ articleRoutes.get('/', async (req, res) => {
 // Add article by URL
 articleRoutes.post('/', async (req, res) => {
   try {
-    const { url, countryIds = [] } = req.body;
+    const { url, countryIds = [], keyNotes, title: providedTitle } = req.body;
+
+    // Validate URL format
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return res.status(400).json({ error: 'URL must use http or https protocol' });
+      }
+    } catch (urlError) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
 
     // Check if article already exists
     const existing = await prisma.article.findUnique({
@@ -73,12 +89,31 @@ articleRoutes.post('/', async (req, res) => {
     }
 
     // Fetch and parse the URL
-    const response = await fetch(url);
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; WorldTrackerBot/1.0)',
+        },
+        redirect: 'follow',
+      });
+      
+      if (!response.ok) {
+        return res.status(400).json({ 
+          error: `Failed to fetch article: ${response.status} ${response.statusText}` 
+        });
+      }
+    } catch (fetchError) {
+      console.error('Error fetching URL:', fetchError);
+      return res.status(400).json({ error: 'Failed to fetch article. Please check the URL is accessible.' });
+    }
+
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // Extract metadata
-    const title = $('meta[property="og:title"]').attr('content') || 
+    // Use provided title or extract metadata
+    const title = providedTitle || 
+                  $('meta[property="og:title"]').attr('content') || 
                   $('title').text() || 
                   'Untitled Article';
     
@@ -95,28 +130,24 @@ articleRoutes.post('/', async (req, res) => {
                         $('main').text() || 
                         $('body').text().slice(0, 5000);
 
-    // Generate summary using OpenAI
+    // Generate summary using Claude
     let summary = null;
     try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const completion = await claude.messages.create({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 200,
         messages: [
           {
-            role: 'system',
-            content: 'You are a news summarization assistant. Create a concise 2-3 sentence summary of the article.',
-          },
-          {
             role: 'user',
-            content: `Summarize this article:\n\nTitle: ${title}\n\nContent: ${articleText.slice(0, 3000)}`,
+            content: `You are a news summarization assistant. Create a concise 2-3 sentence summary of this article.\n\nTitle: ${title}\n\nContent: ${articleText.slice(0, 3000)}`,
           },
         ],
-        max_tokens: 200,
       });
 
-      summary = completion.choices[0]?.message?.content || null;
-    } catch (openaiError) {
-      console.error('Error generating summary:', openaiError);
-      // Continue without summary if OpenAI fails
+      summary = completion.content[0]?.type === 'text' ? completion.content[0].text : null;
+    } catch (claudeError) {
+      console.error('Error generating summary:', claudeError);
+      // Continue without summary if Claude fails
     }
 
     // Create article
@@ -127,6 +158,7 @@ articleRoutes.post('/', async (req, res) => {
         source,
         publishDate,
         summary,
+        keyNotes,
         rawMetadata: {
           html: html.slice(0, 10000), // Store first 10k chars of HTML
         },
@@ -149,6 +181,34 @@ articleRoutes.post('/', async (req, res) => {
   } catch (error) {
     console.error('Error adding article:', error);
     res.status(500).json({ error: 'Failed to add article' });
+  }
+});
+
+// Update article (title and keyNotes)
+articleRoutes.patch('/:articleId', async (req, res) => {
+  try {
+    const { articleId } = req.params;
+    const { title, keyNotes } = req.body;
+
+    const article = await prisma.article.update({
+      where: { id: articleId },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(keyNotes !== undefined && { keyNotes }),
+      },
+      include: {
+        countryLinks: {
+          include: {
+            country: true,
+          },
+        },
+      },
+    });
+
+    res.json(article);
+  } catch (error) {
+    console.error('Error updating article:', error);
+    res.status(500).json({ error: 'Failed to update article' });
   }
 });
 

@@ -70,14 +70,14 @@ type Store = {
   selectedRegionId: string | null;
   contextData: ContextData | null;
   loading: boolean;
-  colorDimension: 'economic' | 'social' | 'political';
+  colorDimension: 'economic' | 'social' | 'political' | 'ideological';
 
   // Actions
   fetchCountries: () => Promise<void>;
   selectCountry: (id: string) => Promise<void>;
   selectRegion: (id: string) => Promise<void>;
   clearSelection: () => void;
-  setColorDimension: (dimension: 'economic' | 'social' | 'political') => void;
+  setColorDimension: (dimension: 'economic' | 'social' | 'political' | 'ideological') => void;
   refreshContext: () => Promise<void>;
 };
 

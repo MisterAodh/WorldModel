@@ -162,12 +162,21 @@ ${JSON.stringify(contextData, null, 2)}
 
 Your capabilities:
 1. Answer questions using both the context data AND your knowledge base
-2. Use web search for current information, recent news, and real-time data - you HAVE web search available!
-3. Provide geopolitical analysis with sources when using search
+2. You have access to web search for current information, recent news, and real-time data
+3. Provide geopolitical analysis with sources
 4. When asked to suggest updates, be specific with numerical scores
-5. Always cite URLs when using search results
+5. Always cite sources using the special format: SOURCE{{URL: descriptor}}
 
-Important: Be direct and helpful. Don't say you can't browse or access the web - you CAN and SHOULD use web search when asked for recent information or news.`;
+**IMPORTANT: Source Citation Format**
+When citing sources, use this EXACT format:
+SOURCE{{https://example.com/article: Source Name or Brief Description}}
+
+Example:
+SOURCE{{https://www.nasdaq.com/articles/lithium-market-update-q3-2025: Nasdaq - Lithium Market Q3 2025}}
+
+This format allows sources to be easily added as articles to the database. Use descriptive, concise titles for the descriptor.
+
+Use web search when users ask about recent events, news, or current data that requires up-to-date information.`;
 
     // Prepare messages for Claude
     const claudeMessages = [
@@ -178,39 +187,38 @@ Important: Be direct and helpful. Don't say you can't browse or access the web -
       { role: 'user', content: message },
     ];
 
-    // Call Claude API
-    console.log('Calling Claude API...');
-    
+    // Use Claude's native web search tool
     const response = await claude.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-sonnet-4-5',
       max_tokens: 2000,
       system: systemPrompt,
       messages: claudeMessages,
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 5,
+        } as any
+      ],
     });
 
-    let assistantMessage = '';
-    const searchResults: any[] = [];
+    console.log('Claude response:', response);
+    console.log('Stop reason:', response.stop_reason);
 
-    // Process response blocks
+    // Extract assistant message from response
+    let assistantMessage = '';
     for (const block of response.content) {
       if (block.type === 'text') {
         assistantMessage += block.text;
       }
     }
 
-    // Extract search results from stop_reason metadata if available
+    // Extract search results if Claude used web search
+    const searchResults: any[] = [];
     if ((response as any).search_results) {
-      const results = (response as any).search_results;
-      if (Array.isArray(results)) {
-        searchResults.push(...results.map((r: any) => ({
-          title: r.title || 'Untitled',
-          url: r.url || '',
-          snippet: r.snippet || r.content?.substring(0, 200) || '',
-        })));
-      }
+      searchResults.push(...(response as any).search_results);
+      console.log(`Claude used web search: ${searchResults.length} results found`);
     }
-
-    console.log('Claude response received with', searchResults.length, 'search results');
 
     // Check if user is asking for structured suggestions
     const isRequestingUpdates = message.toLowerCase().includes('suggest') || 

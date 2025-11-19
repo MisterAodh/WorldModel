@@ -4,6 +4,13 @@ import { createTag, getTags } from '../lib/api';
 import { Plus, Minus, TrendingUp, TrendingDown, X, History } from 'lucide-react';
 import axios from 'axios';
 
+const categoryConfig = {
+  economic: { displayName: 'Economic Growth', dbCategory: 'ECONOMIC' },
+  social: { displayName: 'Social Cohesion', dbCategory: 'SOCIAL' },
+  political: { displayName: 'Political Stability', dbCategory: 'POLITICAL' },
+  ideological: { displayName: 'Conservative or Progressive', dbCategory: 'IDEOLOGICAL' },
+};
+
 export function QualitativeTagsEditor() {
   const { contextData, selectedCountryId, selectedRegionId, refreshContext } = useStore();
   const [loading, setLoading] = useState<string | null>(null);
@@ -12,7 +19,7 @@ export function QualitativeTagsEditor() {
 
   if (!contextData) return null;
 
-  const handleAddScore = async (category: string) => {
+  const handleAddScore = async (category: keyof typeof categoryConfig) => {
     const scopeType = selectedCountryId ? 'country' : 'region';
     const scopeId = selectedCountryId || selectedRegionId;
     const score = parseInt(scoreInput[category] || '0');
@@ -24,7 +31,7 @@ export function QualitativeTagsEditor() {
       await createTag({
         scopeType,
         scopeId,
-        category: category.toUpperCase(),
+        category: categoryConfig[category].dbCategory,
         value: score,
       });
       setScoreInput({ ...scoreInput, [category]: '' });
@@ -49,13 +56,14 @@ export function QualitativeTagsEditor() {
     }
   };
 
-  const categories = ['economic', 'social', 'political'];
+  const categories = Object.keys(categoryConfig) as Array<keyof typeof categoryConfig>;
 
   return (
     <div className="space-y-4">
       {categories.map((category) => {
+        const config = categoryConfig[category];
         const categoryTags = contextData.tags.filter(
-          (t) => t.category.toLowerCase() === category
+          (t) => t.category.toLowerCase() === config.dbCategory.toLowerCase()
         );
         
         // Calculate rolling score (sum of all values)
@@ -67,9 +75,9 @@ export function QualitativeTagsEditor() {
             {/* Header with category and current score */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold capitalize">{category}</span>
+                <span className="text-sm font-semibold">{config.displayName}</span>
                 <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold ${
-                  totalScore > 0 ? 'bg-green-500/20 text-green-400' :
+                  totalScore > 0 ? 'bg-blue-500/20 text-blue-400' :
                   totalScore < 0 ? 'bg-red-500/20 text-red-400' :
                   'bg-gray-500/20 text-gray-400'
                 }`}>
@@ -91,9 +99,16 @@ export function QualitativeTagsEditor() {
             <div className="flex gap-2 mb-3">
               <div className="flex-1 flex gap-1">
                 <button
-                  onClick={() => setScoreInput({ ...scoreInput, [category]: '-1' })}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const currentValue = parseInt(scoreInput[category] || '0', 10);
+                    const newValue = currentValue - 1;
+                    setScoreInput({ ...scoreInput, [category]: newValue.toString() });
+                  }}
                   className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-md transition-colors"
-                  title="Add -1"
+                  title="Decrease by 1"
+                  type="button"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
@@ -101,13 +116,33 @@ export function QualitativeTagsEditor() {
                   type="number"
                   value={scoreInput[category] || ''}
                   onChange={(e) => setScoreInput({ ...scoreInput, [category]: e.target.value })}
+                  onKeyDown={(e) => {
+                    // Prevent default behavior for arrow keys to avoid conflicts
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      const currentValue = parseInt(scoreInput[category] || '0', 10);
+                      if (e.key === 'ArrowUp') {
+                        setScoreInput({ ...scoreInput, [category]: (currentValue + 1).toString() });
+                      } else {
+                        setScoreInput({ ...scoreInput, [category]: (currentValue - 1).toString() });
+                      }
+                    }
+                  }}
                   placeholder="±"
-                  className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  style={{ MozAppearance: 'textfield' }}
                 />
                 <button
-                  onClick={() => setScoreInput({ ...scoreInput, [category]: '+1' })}
-                  className="px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-md transition-colors"
-                  title="Add +1"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const currentValue = parseInt(scoreInput[category] || '0', 10);
+                    const newValue = currentValue + 1;
+                    setScoreInput({ ...scoreInput, [category]: newValue.toString() });
+                  }}
+                  className="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-md transition-colors"
+                  title="Increase by 1"
+                  type="button"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -132,7 +167,7 @@ export function QualitativeTagsEditor() {
                   >
                     <div className="flex items-center gap-2 flex-1">
                       <span className={`text-sm font-bold ${
-                        tag.value > 0 ? 'text-green-400' : 
+                        tag.value > 0 ? 'text-blue-400' : 
                         tag.value < 0 ? 'text-red-400' : 
                         'text-gray-400'
                       }`}>

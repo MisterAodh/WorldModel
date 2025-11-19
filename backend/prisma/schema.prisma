@@ -71,6 +71,7 @@ model Article {
   source               String?
   publishDate          DateTime?
   summary              String?                @db.Text
+  keyNotes             String?                @db.Text
   rawMetadata          Json?                  // Parsed content, HTML, etc.
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
@@ -107,6 +108,7 @@ enum TagCategory {
   ECONOMIC
   SOCIAL
   POLITICAL
+  IDEOLOGICAL
 }
 
 model QualitativeTag {

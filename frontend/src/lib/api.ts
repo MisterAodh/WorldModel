@@ -48,7 +48,7 @@ export const deleteIndustry = (id: string) => api.delete(`/industries/${id}`);
 // Articles
 export const getArticles = (params?: { countryId?: string; regionId?: string }) =>
   api.get('/articles', { params });
-export const createArticle = (data: { url: string; countryIds?: string[] }) =>
+export const createArticle = (data: { url: string; countryIds?: string[]; title?: string; keyNotes?: string }) =>
   api.post('/articles', data);
 export const linkArticleToCountry = (articleId: string, countryId: string) =>
   api.post(`/articles/${articleId}/countries`, { countryId });

@@ -70,8 +70,8 @@ npm install
 Create `backend/.env`:
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/world_tracker?schema=public"
-OPENAI_API_KEY="sk-your-openai-key"
-TAVILY_API_KEY="tvly-your-tavily-key" # Enables web search in chat
+CLAUDE_API_KEY="sk-ant-your-claude-key"
+TAVILY_API_KEY="tvly-your-tavily-key" # REQUIRED for web search in chat
 PORT=3001
 NODE_ENV=development
 ```
