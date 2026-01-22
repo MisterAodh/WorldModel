@@ -57,6 +57,27 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
   };
 
   // Parse SOURCE{{URL: descriptor}} format from AI responses
+  // Normalize URL to ensure it's valid
+  const normalizeUrl = (url: string): string => {
+    url = url.trim();
+    
+    // Remove any whitespace
+    url = url.replace(/\s+/g, '');
+    
+    // If it starts with //, add https:
+    if (url.startsWith('//')) {
+      return 'https:' + url;
+    }
+    
+    // If it already starts with http:// or https://, return as-is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Otherwise, add https://
+    return 'https://' + url;
+  };
+
   const parseSourceLinks = (text: string) => {
     const sourceRegex = /SOURCE\{\{([^:}]+):\s*([^}]+)\}\}/g;
     const parts: Array<{ type: 'text' | 'source'; content: string; url?: string; title?: string }> = [];
@@ -69,21 +90,15 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
         parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
       }
       
-      let url = match[1].trim();
+      let url = normalizeUrl(match[1]);
       let rawTitle = match[2].trim();
-      
-      // Fix URL protocol
-      if (url.startsWith('//')) {
-        // Protocol-relative URL
-        url = 'https:' + url;
-      } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-      }
       
       // Extract clean title (take the part after " - " if it exists)
       const title = rawTitle.includes(' - ') 
         ? rawTitle.split(' - ').slice(1).join(' - ').trim()
         : rawTitle;
+      
+      console.log('📌 Parsed SOURCE:', { rawUrl: match[1], normalizedUrl: url, title });
       
       // Add the source link
       parts.push({
@@ -106,11 +121,14 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
   const handleAddArticle = async (url: string, title: string) => {
     if (!selectedCountryId || addingArticle) return;
     
-    console.log('Adding article with URL:', url, 'and title:', title);
+    // Normalize URL before sending
+    const normalizedUrl = normalizeUrl(url);
+    console.log('➕ Adding article:', { originalUrl: url, normalizedUrl, title });
+    
     setAddingArticle(true);
     try {
       await createArticle({
-        url,
+        url: normalizedUrl,
         title,
         countryIds: [selectedCountryId],
       });
@@ -230,8 +248,11 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
                           </button>
                           <button
                             onClick={() => {
-                              console.log('Opening URL:', part.url);
-                              window.open(part.url, '_blank', 'noopener,noreferrer');
+                              const url = part.url!;
+                              console.log('🌐 Opening article in new tab:', url);
+                              console.log('   - URL length:', url.length);
+                              console.log('   - Starts with http:', url.startsWith('http'));
+                              window.open(url, '_blank', 'noopener,noreferrer');
                             }}
                             className="w-full px-3 py-2 text-left text-xs hover:bg-secondary transition-colors flex items-center gap-2"
                           >

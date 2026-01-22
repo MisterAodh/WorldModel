@@ -12,4 +12,6 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  // Read .env from workspace root (one level up from frontend folder)
+  envDir: path.resolve(__dirname, '../'),
 })

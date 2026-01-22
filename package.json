@@ -8,6 +8,7 @@
     "frontend"
   ],
   "scripts": {
+    "predev": "node scripts/predev.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",

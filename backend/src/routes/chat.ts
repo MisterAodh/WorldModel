@@ -165,18 +165,28 @@ Your capabilities:
 2. You have access to web search for current information, recent news, and real-time data
 3. Provide geopolitical analysis with sources
 4. When asked to suggest updates, be specific with numerical scores
-5. Always cite sources using the special format: SOURCE{{URL: descriptor}}
+5. **ALWAYS cite sources using the special format below**
 
-**IMPORTANT: Source Citation Format**
-When citing sources, use this EXACT format:
-SOURCE{{https://example.com/article: Source Name or Brief Description}}
+**CRITICAL: Source Citation Format**
+You MUST cite sources using this EXACT format for EVERY piece of information from web search:
+SOURCE{{https://example.com/article: Article Title or Brief Description}}
 
-Example:
-SOURCE{{https://www.nasdaq.com/articles/lithium-market-update-q3-2025: Nasdaq - Lithium Market Q3 2025}}
+Rules:
+- The URL must be the FULL URL including https://
+- The descriptor should be a clean article title or brief description (NOT the source name like "BBC -")
+- Just the title, like "Sudan Civil War Update 2025" not "BBC - Sudan Civil War Update 2025"
+- Include SOURCE citations throughout your response, not just at the end
+- If you use web search, you MUST cite the specific URLs you found
 
-This format allows sources to be easily added as articles to the database. Use descriptive, concise titles for the descriptor.
+Example response with proper citations:
+"Sudan is experiencing a civil war between the SAF and RSF SOURCE{{https://www.bbc.com/news/sudan-conflict-2025: Sudan Civil War Update}}. The humanitarian crisis has displaced over 8 million people SOURCE{{https://www.unhcr.org/sudan-crisis: UNHCR Sudan Displacement Report}}."
 
-Use web search when users ask about recent events, news, or current data that requires up-to-date information.`;
+When users ask about recent events, news, or current data, you MUST:
+1. Use web search to find current information
+2. Include SOURCE{{URL: Title}} citations for every fact from search results
+3. Make the citations clickable by using the exact format above
+
+Do NOT respond with general knowledge for current events - USE WEB SEARCH and CITE THE SOURCES.`;
 
     // Prepare messages for Claude
     const claudeMessages = [
@@ -214,10 +224,43 @@ Use web search when users ask about recent events, news, or current data that re
     }
 
     // Extract search results if Claude used web search
+    // With web_search_20250305, search results may be in various places
     const searchResults: any[] = [];
-    if ((response as any).search_results) {
-      searchResults.push(...(response as any).search_results);
-      console.log(`Claude used web search: ${searchResults.length} results found`);
+    const responseAny = response as any;
+    
+    console.log('🔍 Checking for search results...');
+    console.log('Response keys:', Object.keys(responseAny));
+    
+    // Check multiple possible locations for search results
+    const possibleLocations = [
+      { path: 'search_results', data: responseAny.search_results },
+      { path: 'metadata.search_results', data: responseAny.metadata?.search_results },
+      { path: 'usage.search_results', data: responseAny.usage?.search_results },
+      { path: 'search_queries', data: responseAny.search_queries },
+    ];
+    
+    for (const location of possibleLocations) {
+      if (location.data && Array.isArray(location.data)) {
+        console.log(`✅ Found search results in ${location.path}:`, location.data.length);
+        const results = location.data.map((result: any) => ({
+          title: result.title || result.name || 'Untitled',
+          url: result.url || result.link || '',
+          snippet: result.content || result.snippet || result.description || '',
+        }));
+        searchResults.push(...results);
+      }
+    }
+    
+    if (searchResults.length > 0) {
+      console.log(`🔍 Total search results to send to frontend: ${searchResults.length}`);
+      searchResults.forEach((r, i) => {
+        console.log(`  ${i + 1}. ${r.title}`);
+        console.log(`     ${r.url}`);
+      });
+    } else {
+      console.log('⚠️  No search results found in response');
+      // Log the full structure to help debug
+      console.log('Full response structure:', JSON.stringify(responseAny, null, 2).slice(0, 1000));
     }
 
     // Check if user is asking for structured suggestions

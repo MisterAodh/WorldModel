@@ -218,7 +218,15 @@ export function ArticlesTab() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1 hover:bg-secondary rounded-md transition-colors"
-                      title="Open in new tab"
+                      title={`Open: ${article.url}`}
+                      onClick={(e) => {
+                        console.log('🔗 Clicking article link:', {
+                          url: article.url,
+                          urlLength: article.url.length,
+                          startsWithHttp: article.url.startsWith('http'),
+                          title: article.title,
+                        });
+                      }}
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>

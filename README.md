@@ -32,7 +32,7 @@ A powerful platform for tracking and analyzing geopolitical intelligence with AI
 
 ### 📰 Article Management
 - Add articles by URL with automatic content extraction
-- AI-generated summaries using OpenAI
+- AI-generated summaries using Claude
 - Link articles to multiple countries
 - View all articles related to a country or region
 
@@ -41,7 +41,8 @@ A powerful platform for tracking and analyzing geopolitical intelligence with AI
 ### Backend
 - **Node.js + Express** with TypeScript
 - **PostgreSQL** database with Prisma ORM
-- **OpenAI API** for chat and summarization
+- **Claude API** for chat and summarization
+- **Tavily API** for web search integration
 - RESTful API architecture
 
 ### Frontend
@@ -50,13 +51,40 @@ A powerful platform for tracking and analyzing geopolitical intelligence with AI
 - **Mapbox GL JS** for interactive mapping
 - **Zustand** for state management
 
-## Setup Instructions
+## Quick Start
+
+For detailed setup, see below. For quick start:
+
+```bash
+# 1. Copy and configure environment variables
+cp env.example .env
+# Edit .env with your API keys
+
+# 2. Install dependencies
+npm install
+
+# 3. Setup database
+cd backend && npx prisma db push && npm run db:seed && cd ..
+
+# 4. Start the application
+npm run dev
+```
+
+That's it! `npm run dev` will:
+- Check for `.env` file
+- Auto-start PostgreSQL if not running
+- Launch frontend and backend servers
+
+Open http://localhost:3000 in your browser!
+
+## Detailed Setup Instructions
 
 ### Prerequisites
 - Node.js 18+ and npm
 - PostgreSQL 14+
-- OpenAI API key
-- Mapbox API token
+- Claude API key (get from https://console.anthropic.com/)
+- Mapbox API token (get from https://account.mapbox.com/)
+- (Optional) Tavily API key for web search (get from https://tavily.com/)
 
 ### 1. Clone and Install
 
@@ -67,20 +95,30 @@ npm install
 
 ### 2. Configure Environment Variables
 
-Create `backend/.env`:
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/world_tracker?schema=public"
-CLAUDE_API_KEY="sk-ant-your-claude-key"
-TAVILY_API_KEY="tvly-your-tavily-key" # REQUIRED for web search in chat
-PORT=3001
-NODE_ENV=development
+Copy `env.example` to `.env` in the **root directory** and fill in your values:
+```bash
+cp env.example .env
 ```
 
-Create `frontend/.env`:
+Then edit `.env` with your actual credentials:
 ```env
-VITE_API_URL=http://localhost:3001
-VITE_MAPBOX_TOKEN=pk.your-mapbox-token
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/world_tracker"
+
+# Claude AI (Required for chat and article summaries)
+CLAUDE_API_KEY="sk-ant-your-claude-key"
+
+# Tavily (Required for web search)
+TAVILY_API_KEY="tvly-your-tavily-key"
+
+# Mapbox (Required for map display)
+VITE_MAPBOX_TOKEN="pk.your-mapbox-token"
+
+# API URL (usually no need to change)
+VITE_API_URL="http://localhost:3001"
 ```
+
+**Note:** The frontend and backend now share a single `.env` file at the project root.
 
 ### 3. Database Setup
 
@@ -100,18 +138,13 @@ From the root directory:
 npm run dev
 ```
 
-This will start:
-- Backend API on http://localhost:3001
-- Frontend on http://localhost:3000
+This automatically:
+- ✅ Checks for `.env` file
+- ✅ Starts PostgreSQL (if not running)
+- ✅ Launches backend on http://localhost:3001
+- ✅ Launches frontend on http://localhost:3000
 
-Or run them separately:
-```bash
-# Terminal 1 - Backend
-npm run dev:backend
-
-# Terminal 2 - Frontend
-npm run dev:frontend
-```
+The app is now running at **http://localhost:3000**!
 
 ## API Documentation
 
@@ -296,8 +329,9 @@ npm start
 ### Backend
 - Express.js - Web framework
 - Prisma - ORM and database toolkit
-- OpenAI - AI chat and summarization
-- Cheerio - HTML parsing
+- Claude (Anthropic) - AI chat and summarization
+- Tavily - Web search integration
+- Cheerio - HTML parsing for article extraction
 - Zod - Schema validation
 
 ### Frontend
