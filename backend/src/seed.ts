@@ -1,4 +1,5 @@
 import { prisma } from './lib/prisma.js';
+import { metricDefinitions } from '../prisma/seeds/metricDefinitions.js';
 
 // ISO 3166-1 country data (all 193 UN member states)
 const countries = [
@@ -206,6 +207,8 @@ async function seed() {
   await prisma.aISuggestion.deleteMany({});
   await prisma.note.deleteMany({});
   await prisma.industryShare.deleteMany({});
+  await prisma.countryMetricData.deleteMany({});
+  await prisma.dataAggregationJob.deleteMany({});
   await prisma.countryMetrics.deleteMany({});
   await prisma.qualitativeTag.deleteMany({});
   await prisma.articleCountryLink.deleteMany({});
@@ -213,6 +216,7 @@ async function seed() {
   await prisma.regionMembership.deleteMany({});
   await prisma.region.deleteMany({});
   await prisma.country.deleteMany({});
+  await prisma.metricDefinition.deleteMany({});
 
   // Seed countries
   console.log('Seeding countries...');
@@ -223,6 +227,16 @@ async function seed() {
   }
 
   console.log(`✅ Seeded ${countries.length} countries`);
+
+  console.log('Seeding metric definitions...');
+  for (const definition of metricDefinitions) {
+    await prisma.metricDefinition.upsert({
+      where: { code: definition.code },
+      update: definition,
+      create: definition,
+    });
+  }
+  console.log(`✅ Seeded ${metricDefinitions.length} metric definitions`);
   console.log('Database seeding complete!');
 }
 

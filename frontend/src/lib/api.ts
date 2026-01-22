@@ -79,3 +79,24 @@ export const sendChatMessage = (data: {
   contextId?: string;
   conversationHistory?: any[];
 }) => api.post('/chat', data);
+
+// Metric definitions
+export const getMetricDefinitions = () => api.get('/metric-definitions');
+
+// Country metrics (new system)
+export const getCountryMetricsSpreadsheet = (countryId: string, year?: number) =>
+  api.get(`/country-metrics/${countryId}/spreadsheet`, { params: { year } });
+export const upsertCountryMetric = (data: any) => api.post('/country-metrics', data);
+export const deleteCountryMetric = (id: string) => api.delete(`/country-metrics/${id}`);
+
+// Aggregation jobs
+export const getAggregationJobs = (countryId: string) => api.get(`/aggregation-jobs/${countryId}`);
+export const getActiveAggregationJob = (countryId: string) => api.get(`/aggregation-jobs/${countryId}/active`);
+export const getAggregationJobLogs = (id: string) => api.get(`/aggregation-jobs/${id}/logs`);
+export const startAggregationJob = (data: { countryId: string; year: number }) =>
+  api.post('/aggregation-jobs', data);
+export const cancelAggregationJob = (id: string) => api.post(`/aggregation-jobs/${id}/cancel`);
+
+// AI Score generation
+export const generateAIScores = (countryId: string, year?: number) =>
+  api.post(`/tags/generate-scores/${countryId}`, { year });

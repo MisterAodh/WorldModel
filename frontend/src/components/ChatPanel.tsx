@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { sendChatMessage, createArticle } from '../lib/api';
-import { Send, Loader2, MessageSquare, Plus, ExternalLink } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Plus, ExternalLink, GripHorizontal } from 'lucide-react';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -22,6 +22,41 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
   const [addingArticle, setAddingArticle] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Resizable panel state
+  const [panelHeight, setPanelHeight] = useState(384); // Default h-96 = 24rem = 384px
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartY = useRef(0);
+  const resizeStartHeight = useRef(0);
+  
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    resizeStartY.current = e.clientY;
+    resizeStartHeight.current = panelHeight;
+  }, [panelHeight]);
+  
+  useEffect(() => {
+    if (!isResizing) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = resizeStartY.current - e.clientY; // Inverted: drag up = increase
+      const newHeight = Math.max(150, Math.min(800, resizeStartHeight.current + delta));
+      setPanelHeight(newHeight);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -79,7 +114,7 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
   };
 
   const parseSourceLinks = (text: string) => {
-    const sourceRegex = /SOURCE\{\{([^:}]+):\s*([^}]+)\}\}/g;
+    const sourceRegex = /SOURCE\{\{([^}]+)\}\}/g;
     const parts: Array<{ type: 'text' | 'source'; content: string; url?: string; title?: string }> = [];
     let lastIndex = 0;
     let match;
@@ -90,15 +125,24 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
         parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
       }
       
-      let url = normalizeUrl(match[1]);
-      let rawTitle = match[2].trim();
+      const raw = match[1];
+      const separatorIndex = raw.indexOf(': ');
+      if (separatorIndex === -1) {
+        parts.push({ type: 'text', content: match[0] });
+        lastIndex = match.index + match[0].length;
+        continue;
+      }
+
+      const rawUrl = raw.slice(0, separatorIndex).trim();
+      const rawTitle = raw.slice(separatorIndex + 2).trim();
+      const url = normalizeUrl(rawUrl);
       
       // Extract clean title (take the part after " - " if it exists)
       const title = rawTitle.includes(' - ') 
         ? rawTitle.split(' - ').slice(1).join(' - ').trim()
         : rawTitle;
       
-      console.log('📌 Parsed SOURCE:', { rawUrl: match[1], normalizedUrl: url, title });
+      console.log('📌 Parsed SOURCE:', { rawUrl, normalizedUrl: url, title });
       
       // Add the source link
       parts.push({
@@ -187,9 +231,20 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
   };
 
   return (
-    <div className="border-t border-border bg-card flex flex-col h-96">
+    <div 
+      className="border-t border-border bg-card flex flex-col"
+      style={{ height: panelHeight }}
+    >
+      {/* Resize Handle */}
+      <div
+        onMouseDown={handleResizeStart}
+        className={`h-2 flex items-center justify-center cursor-ns-resize hover:bg-secondary/50 transition-colors ${isResizing ? 'bg-secondary' : ''}`}
+      >
+        <GripHorizontal className="w-4 h-4 text-muted-foreground" />
+      </div>
+      
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border bg-background/50">
+      <div className="px-4 py-2 border-b border-border bg-background/50">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold">AI Assistant</h3>

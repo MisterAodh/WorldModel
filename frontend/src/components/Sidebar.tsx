@@ -5,8 +5,8 @@ import { DataTab } from './tabs/DataTab';
 import { SuggestionsTab } from './tabs/SuggestionsTab';
 import { ChatPanel } from './ChatPanel';
 import { RegionCreator } from './RegionCreator';
-import { useState } from 'react';
-import { Globe, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Globe, Maximize2, Minimize2, X } from 'lucide-react';
 
 type SidebarProps = {
   onOpenArticle: (article: { url: string; title?: string }) => void;
@@ -16,10 +16,19 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
   const { contextData, selectedCountryId, selectedRegionId, clearSelection, colorDimension, setColorDimension } = useStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'articles' | 'data' | 'suggestions'>('overview');
   const [showRegionCreator, setShowRegionCreator] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'data' && isExpanded) {
+      setIsExpanded(false);
+    }
+  }, [activeTab, isExpanded]);
+
+  const sidebarWidth = isExpanded ? 'w-[85vw]' : 'w-[500px]';
 
   if (!contextData) {
     return (
-      <div className="w-[500px] bg-card border-l border-border flex flex-col">
+      <div className={`${sidebarWidth} bg-card border-l border-border flex flex-col`}>
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3 mb-4">
             <Globe className="w-6 h-6 text-primary" />
@@ -75,7 +84,7 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
   const contextType = selectedCountryId ? 'Country' : 'Region';
 
   return (
-    <div className="w-[500px] bg-card border-l border-border flex flex-col">
+    <div className={`${sidebarWidth} bg-card border-l border-border flex flex-col`}>
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-start justify-between mb-2">
@@ -85,12 +94,23 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
             </div>
             <h2 className="text-2xl font-bold">{contextName}</h2>
           </div>
-          <button
-            onClick={clearSelection}
-            className="p-1 hover:bg-secondary rounded-md transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {activeTab === 'data' && (
+              <button
+                onClick={() => setIsExpanded((prev) => !prev)}
+                className="p-1 hover:bg-secondary rounded-md transition-colors"
+                title={isExpanded ? 'Collapse' : 'Expand'}
+              >
+                {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              </button>
+            )}
+            <button
+              onClick={clearSelection}
+              className="p-1 hover:bg-secondary rounded-md transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 

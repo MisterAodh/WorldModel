@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { updateMetrics, updateIndustry } from '../../lib/api';
 import { Save, Plus } from 'lucide-react';
+import { CountryDataSpreadsheet } from '../CountryDataSpreadsheet';
+import { DataAggregationPanel } from '../DataAggregationPanel';
 
 export function DataTab() {
   const { contextData, selectedCountryId, refreshContext } = useStore();
@@ -9,6 +11,8 @@ export function DataTab() {
   const [metricsForm, setMetricsForm] = useState<any>({});
   const [addingIndustry, setAddingIndustry] = useState(false);
   const [newIndustry, setNewIndustry] = useState({ name: '', share: '' });
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [refreshKey, setRefreshKey] = useState(0);
 
   if (!contextData) return null;
 
@@ -48,7 +52,41 @@ export function DataTab() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 h-full flex flex-col">
+      {!selectedCountryId && (
+        <p className="text-sm text-muted-foreground">Select a country to view deep data.</p>
+      )}
+
+      {selectedCountryId && (
+        <DataAggregationPanel
+          countryId={selectedCountryId}
+          onJobComplete={() => {
+            setRefreshKey((prev) => prev + 1);
+            refreshContext();
+          }}
+          onYearChange={(year) => {
+            setSelectedYear(year);
+          }}
+        />
+      )}
+
+      {selectedCountryId && (
+        <div className="flex-1 min-h-[300px] border rounded-lg overflow-hidden">
+          <CountryDataSpreadsheet
+            countryId={selectedCountryId}
+            year={selectedYear}
+            onYearChange={setSelectedYear}
+            refreshKey={refreshKey}
+          />
+        </div>
+      )}
+
+      <details className="rounded-lg border p-4">
+        <summary className="text-sm font-semibold uppercase text-muted-foreground cursor-pointer">
+          Legacy Metrics and Industries
+        </summary>
+
+        <div className="mt-4 space-y-6">
       {/* Metrics Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -215,6 +253,8 @@ export function DataTab() {
           </div>
         </div>
       )}
+        </div>
+      </details>
     </div>
   );
 }

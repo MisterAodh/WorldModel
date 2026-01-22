@@ -12,6 +12,9 @@ import { articleRoutes } from './routes/articles.js';
 import { suggestionRoutes } from './routes/suggestions.js';
 import { chatRoutes } from './routes/chat.js';
 import { noteRoutes } from './routes/notes.js';
+import { metricDefinitionRoutes } from './routes/metricDefinitions.js';
+import { countryMetricsRoutes } from './routes/countryMetrics.js';
+import { aggregationJobRoutes } from './routes/aggregationJobs.js';
 
 // Load .env from workspace root (two levels up from this file)
 const __filename = fileURLToPath(import.meta.url);
@@ -35,6 +38,9 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/suggestions', suggestionRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/metric-definitions', metricDefinitionRoutes);
+app.use('/api/country-metrics', countryMetricsRoutes);
+app.use('/api/aggregation-jobs', aggregationJobRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

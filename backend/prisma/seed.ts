@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { metricDefinitions } from './seeds/metricDefinitions.js';
 
 const prisma = new PrismaClient();
 
@@ -148,6 +149,8 @@ async function main() {
   await prisma.articleCountryLink.deleteMany();
   await prisma.article.deleteMany();
   await prisma.qualitativeTag.deleteMany();
+  await prisma.countryMetricData.deleteMany();
+  await prisma.dataAggregationJob.deleteMany();
   await prisma.countryMetrics.deleteMany();
   await prisma.industryShare.deleteMany();
   await prisma.note.deleteMany();
@@ -155,6 +158,7 @@ async function main() {
   await prisma.regionMembership.deleteMany();
   await prisma.region.deleteMany();
   await prisma.country.deleteMany();
+  await prisma.metricDefinition.deleteMany();
 
   console.log('✅ Cleared existing data');
 
@@ -166,6 +170,17 @@ async function main() {
   }
 
   console.log(`✅ Seeded ${countries.length} countries`);
+
+  // Seed metric definitions
+  for (const definition of metricDefinitions) {
+    await prisma.metricDefinition.upsert({
+      where: { code: definition.code },
+      update: definition,
+      create: definition,
+    });
+  }
+
+  console.log(`✅ Seeded ${metricDefinitions.length} metric definitions`);
 
   // Create a sample region
   const gulfStates = await prisma.region.create({

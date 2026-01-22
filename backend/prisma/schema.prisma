@@ -21,6 +21,8 @@ model Country {
   metrics              CountryMetrics[]
   industries           IndustryShare[]
   regionMemberships    RegionMembership[]
+  metricData           CountryMetricData[]
+  aggregationJobs      DataAggregationJob[]
   
   @@index([iso3])
   @@map("countries")
@@ -198,4 +200,100 @@ model AISuggestion {
   @@index([scopeType, scopeId, status])
   @@index([status])
   @@map("ai_suggestions")
+}
+
+// Enum for data source type
+enum DataSourceType {
+  OFFICIAL
+  AGGREGATOR
+  NEWS_DERIVED
+  INTERPOLATED
+  MANUAL
+}
+
+// Enum for metric categories
+enum MetricCategory {
+  ECONOMIC_CORE
+  ECONOMIC_MARKET
+  LABOR_INCOME
+  COST_OF_LIVING
+  INDUSTRY
+  DEMOGRAPHICS
+  HEALTH_WELLBEING
+  EDUCATION
+  POLITICAL_STRUCTURE
+  POLITICAL_SENTIMENT
+  SOCIAL_SENTIMENT
+  SECURITY
+  INFRASTRUCTURE
+}
+
+// Master metric definitions
+model MetricDefinition {
+  id            String             @id @default(cuid())
+  code          String             @unique
+  name          String
+  category      MetricCategory
+  unit          String?
+  description   String?
+  dataType      String             @default("number")
+  minValue      Float?
+  maxValue      Float?
+  isQuarterly   Boolean            @default(false)
+  searchHints   String[]           @default([])
+  createdAt     DateTime           @default(now())
+
+  dataPoints    CountryMetricData[]
+
+  @@map("metric_definitions")
+}
+
+// Actual country data points
+model CountryMetricData {
+  id              String             @id @default(cuid())
+  countryId       String
+  metricId        String
+  year            Int
+  quarter         Int?
+  valueNumeric    Float?
+  valueText       String?
+  sourceType      DataSourceType
+  sourceUrl       String?
+  sourceName      String?
+  confidenceScore Int?
+  aiReasoning     String?
+  articleIds      String[]           @default([])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  createdBy       String?
+
+  country         Country            @relation(fields: [countryId], references: [id])
+  metric          MetricDefinition   @relation(fields: [metricId], references: [id])
+
+  @@unique([countryId, metricId, year, quarter])
+  @@index([countryId, year])
+  @@index([metricId])
+  @@map("country_metric_data")
+}
+
+// Data aggregation job tracking
+model DataAggregationJob {
+  id               String    @id @default(cuid())
+  countryId        String
+  year             Int
+  status           String    @default("pending")
+  totalMetrics     Int       @default(0)
+  completedMetrics Int       @default(0)
+  failedMetrics    Int       @default(0)
+  currentMetric    String?
+  logs             Json[]    @default([])
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  country          Country   @relation(fields: [countryId], references: [id])
+
+  @@index([countryId])
+  @@index([status])
+  @@map("data_aggregation_jobs")
 }

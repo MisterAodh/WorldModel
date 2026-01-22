@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { createTag, getTags } from '../lib/api';
-import { Plus, Minus, TrendingUp, TrendingDown, X, History } from 'lucide-react';
+import { createTag, getTags, generateAIScores, getCountryMetricsSpreadsheet } from '../lib/api';
+import { Plus, Minus, TrendingUp, TrendingDown, X, History, Sparkles, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 const categoryConfig = {
@@ -16,6 +16,89 @@ export function QualitativeTagsEditor() {
   const [loading, setLoading] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [scoreInput, setScoreInput] = useState<Record<string, string>>({});
+  const [hasAggregatedData, setHasAggregatedData] = useState(false);
+  const [generatingScores, setGeneratingScores] = useState(false);
+  const [aiScores, setAiScores] = useState<{
+    economic: number;
+    social: number;
+    political: number;
+    ideological: number;
+    reasoning: Record<string, string>;
+  } | null>(null);
+  
+  // Check if aggregated data exists
+  useEffect(() => {
+    const checkAggregatedData = async () => {
+      if (!selectedCountryId) {
+        setHasAggregatedData(false);
+        return;
+      }
+      try {
+        const response = await getCountryMetricsSpreadsheet(selectedCountryId, new Date().getFullYear());
+        // Check if any metrics have values
+        const hasData = response.data?.dataPointCount > 0;
+        setHasAggregatedData(hasData);
+      } catch {
+        setHasAggregatedData(false);
+      }
+    };
+    checkAggregatedData();
+  }, [selectedCountryId, contextData]);
+  
+  const handleGenerateScores = async () => {
+    if (!selectedCountryId || generatingScores) return;
+    
+    setGeneratingScores(true);
+    setAiScores(null);
+    
+    try {
+      const response = await generateAIScores(selectedCountryId, new Date().getFullYear());
+      setAiScores(response.data.scores);
+      
+      // Pre-fill the score inputs
+      setScoreInput({
+        economic: response.data.scores.economic.toString(),
+        social: response.data.scores.social.toString(),
+        political: response.data.scores.political.toString(),
+        ideological: response.data.scores.ideological.toString(),
+      });
+    } catch (error: any) {
+      console.error('Error generating scores:', error);
+      alert(error?.response?.data?.error || 'Failed to generate scores');
+    } finally {
+      setGeneratingScores(false);
+    }
+  };
+  
+  const handleApplyAllScores = async () => {
+    if (!aiScores || !selectedCountryId) return;
+    
+    const scopeType = 'country';
+    const scopeId = selectedCountryId;
+    
+    setLoading('all');
+    try {
+      for (const category of ['economic', 'social', 'political', 'ideological'] as const) {
+        const score = aiScores[category];
+        if (score !== 0) {
+          await createTag({
+            scopeType,
+            scopeId,
+            category: categoryConfig[category].dbCategory,
+            value: score,
+            note: `AI-generated: ${aiScores.reasoning[category]}`,
+          });
+        }
+      }
+      await refreshContext();
+      setAiScores(null);
+      setScoreInput({});
+    } catch (error) {
+      console.error('Error applying scores:', error);
+    } finally {
+      setLoading(null);
+    }
+  };
 
   if (!contextData) return null;
 
@@ -60,6 +143,70 @@ export function QualitativeTagsEditor() {
 
   return (
     <div className="space-y-4">
+      {/* AI Score Generation Button */}
+      {selectedCountryId && hasAggregatedData && (
+        <div className="border border-primary/30 rounded-lg p-3 bg-primary/5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">AI Score Generation</span>
+            </div>
+          </div>
+          
+          {!aiScores ? (
+            <button
+              onClick={handleGenerateScores}
+              disabled={generatingScores}
+              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {generatingScores ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Analyzing data...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Generate Scores from Aggregated Data
+                </>
+              )}
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {categories.map((cat) => (
+                  <div key={cat} className="flex items-center justify-between p-2 bg-background rounded-md">
+                    <span className="text-muted-foreground">{categoryConfig[cat].displayName}:</span>
+                    <span className={`font-bold ${
+                      aiScores[cat] > 0 ? 'text-blue-400' : 
+                      aiScores[cat] < 0 ? 'text-red-400' : 'text-gray-400'
+                    }`}>
+                      {aiScores[cat] > 0 ? '+' : ''}{aiScores[cat]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleApplyAllScores}
+                  disabled={loading === 'all'}
+                  className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                >
+                  {loading === 'all' ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Apply All Scores
+                </button>
+                <button
+                  onClick={() => setAiScores(null)}
+                  className="px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       {categories.map((category) => {
         const config = categoryConfig[category];
         const categoryTags = contextData.tags.filter(
