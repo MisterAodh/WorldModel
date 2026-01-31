@@ -135,98 +135,41 @@ FRONTEND_URL="http://localhost:5173"
 3. **Stripe**: Get keys from https://dashboard.stripe.com/test/apikeys
 4. **Mapbox**: Get token from https://account.mapbox.com
 
-## Deployment (Railway)
+## Deployment
 
-### Full Railway Deployment
+### Frontend (Vercel)
 
-Deploy the entire application (frontend + backend + database) on Railway:
+1. Connect your GitHub repository to Vercel
+2. Set the root directory to `frontend`
+3. Add environment variables:
+   - `VITE_CLERK_PUBLISHABLE_KEY`
+   - `VITE_MAPBOX_TOKEN`
+   - `VITE_API_URL` (your backend URL)
+4. Deploy!
 
-#### 1. Create Railway Project
+### Backend (Railway recommended)
 
-```bash
-# Install Railway CLI (if not already installed)
-npm install -g @railway/cli
-
-# Login to Railway
-railway login
-```
-
-#### 2. Set Up PostgreSQL Database
-
-1. Go to [Railway Dashboard](https://railway.app/dashboard)
-2. Create a new project
-3. Click **+ New** → **Database** → **Add PostgreSQL**
-4. Railway will auto-create `DATABASE_URL` for you
-
-#### 3. Deploy Backend
-
-1. Click **+ New** → **GitHub Repo**
-2. Select your repository
-3. Set **Root Directory**: `backend`
-4. Add these environment variables:
-   - `CLERK_SECRET_KEY` - Your Clerk secret key
-   - `CLAUDE_API_KEY` - Your Anthropic API key
-   - `STRIPE_SECRET_KEY` - Your Stripe secret key
-   - `STRIPE_WEBHOOK_SECRET` - Your Stripe webhook secret
-   - `FRONTEND_URL` - Your frontend Railway URL (add after frontend deploys)
-5. Click Deploy - Railway will auto-detect `railway.json`
-
-The backend will automatically:
-- Install dependencies
-- Generate Prisma client
-- Build TypeScript
-- Run database migrations on start
-
-#### 4. Deploy Frontend
-
-1. Click **+ New** → **GitHub Repo**
-2. Select the same repository
-3. Set **Root Directory**: `frontend`
-4. Add these environment variables:
-   - `VITE_CLERK_PUBLISHABLE_KEY` - Your Clerk publishable key
-   - `VITE_MAPBOX_TOKEN` - Your Mapbox access token
-   - `VITE_API_URL` - Your backend Railway URL (e.g., `https://backend-xxxx.railway.app`)
-5. Click Deploy
-
-#### 5. Update CORS
-
-After both services deploy, update the backend's `FRONTEND_URL` environment variable to your frontend's Railway URL.
-
-#### 6. Configure Custom Domain (Optional)
-
-1. Go to your frontend service settings
-2. Click **Settings** → **Networking** → **Generate Domain** or **Add Custom Domain**
-3. For `atlascast.org`:
-   - Add `atlascast.org` as a custom domain
-   - Update your DNS records as instructed by Railway
-
-### Environment Variables Summary
-
-**Backend Service:**
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | Auto-provided by Railway PostgreSQL |
-| `CLERK_SECRET_KEY` | From Clerk dashboard |
-| `CLAUDE_API_KEY` | From Anthropic console |
-| `STRIPE_SECRET_KEY` | From Stripe dashboard |
-| `STRIPE_WEBHOOK_SECRET` | From Stripe webhooks |
-| `FRONTEND_URL` | Your frontend Railway/custom URL |
-
-**Frontend Service:**
-| Variable | Description |
-|----------|-------------|
-| `VITE_CLERK_PUBLISHABLE_KEY` | From Clerk dashboard |
-| `VITE_MAPBOX_TOKEN` | From Mapbox account |
-| `VITE_API_URL` | Your backend Railway URL |
+1. Create a new project on Railway
+2. Add a PostgreSQL database
+3. Connect your GitHub repository
+4. Set the root directory to `backend`
+5. Add environment variables:
+   - `DATABASE_URL` (auto-provided by Railway)
+   - `CLERK_SECRET_KEY`
+   - `CLAUDE_API_KEY`
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `FRONTEND_URL` (your Vercel URL)
+6. Deploy!
 
 ### Database Migration
 
-Migrations run automatically on deploy via `railway.json`. For manual operations:
+After deploying the backend:
 
 ```bash
-# Connect to Railway and run commands
-railway run npx prisma db push
-railway run npm run db:seed
+# SSH into your Railway container or run via CLI
+npx prisma db push
+npx prisma db seed
 ```
 
 ## API Documentation
