@@ -149,7 +149,7 @@ export function DataAggregationPanel({ countryId, onJobComplete, onYearChange }:
       case 'warning':
         return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default:
-        return <Clock className="w-4 h-4 text-gray-400" />;
+        return <Clock className="w-4 h-4 text-gray-500" />;
     }
   };
 
@@ -159,29 +159,33 @@ export function DataAggregationPanel({ countryId, onJobComplete, onYearChange }:
     : 0;
 
   return (
-    <div className="bg-background rounded-lg border p-4 space-y-4">
+    <div className="bg-black border border-orange-500/30 p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm uppercase text-muted-foreground">Deep Data Aggregation</h3>
-        <button onClick={loadJobs} className="p-1 hover:bg-secondary rounded" title="Refresh">
+        <h3 className="font-semibold text-sm uppercase tracking-wide text-orange-500">Deep Data Aggregation</h3>
+        <button 
+          onClick={loadJobs} 
+          className="p-1 text-gray-400 hover:text-orange-500 hover:bg-orange-500/10 transition-colors" 
+          title="Refresh"
+        >
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">Year</label>
+          <label className="text-xs text-gray-400 uppercase tracking-wide">Year</label>
           <input
             type="number"
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value || '0', 10))}
-            className="w-24 px-2 py-1 bg-secondary border border-border rounded text-xs"
+            className="w-24 px-2 py-1 bg-black border border-orange-500/50 text-orange-500 text-xs font-mono focus:outline-none focus:border-orange-500"
             disabled={!!isJobActive}
           />
         </div>
         {isJobActive ? (
           <button
             onClick={handleCancel}
-            className="flex items-center gap-2 px-3 py-2 bg-destructive text-destructive-foreground rounded text-xs"
+            className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white text-xs uppercase tracking-wide font-medium hover:bg-red-400 transition-colors"
           >
             <Square className="w-3 h-3" />
             Cancel
@@ -190,7 +194,7 @@ export function DataAggregationPanel({ countryId, onJobComplete, onYearChange }:
           <button
             onClick={handleStart}
             disabled={isStarting}
-            className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded text-xs disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-black text-xs uppercase tracking-wide font-medium disabled:opacity-50 hover:bg-orange-400 transition-colors"
           >
             <Play className="w-3 h-3" />
             {isStarting ? 'Starting...' : 'Run Aggregation'}
@@ -201,34 +205,34 @@ export function DataAggregationPanel({ countryId, onJobComplete, onYearChange }:
       {activeJob && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
+            <span className="text-gray-400">
               {activeJob.status === 'running'
                 ? `Processing: ${activeJob.currentMetric || 'Starting'}`
                 : `Status: ${activeJob.status}`}
             </span>
-            <span className="font-medium">
+            <span className="font-medium text-orange-500">
               {activeJob.completedMetrics}/{activeJob.totalMetrics} points
             </span>
           </div>
 
-          <div className="h-2 bg-secondary rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-800 overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${
                 activeJob.status === 'completed'
                   ? 'bg-green-500'
                   : activeJob.status === 'failed'
                   ? 'bg-red-500'
-                  : 'bg-primary'
+                  : 'bg-orange-500'
               }`}
               style={{ width: `${progressPercent}%` }}
             />
           </div>
 
-          <div className="border rounded bg-background/50 p-2 h-48 overflow-auto text-xs font-mono">
+          <div className="border border-orange-500/30 bg-black p-2 h-48 overflow-auto text-xs font-mono">
             {activeJob.logs?.map((log, idx) => (
               <div key={idx} className="flex items-start gap-2 py-0.5">
                 {getLogIcon(log.level)}
-                <span className="text-muted-foreground">
+                <span className="text-gray-500">
                   {new Date(log.timestamp).toLocaleTimeString()}
                 </span>
                 <span
@@ -239,7 +243,7 @@ export function DataAggregationPanel({ countryId, onJobComplete, onYearChange }:
                       ? 'text-yellow-500'
                       : log.level === 'success'
                       ? 'text-green-500'
-                      : 'text-foreground'
+                      : 'text-white'
                   }
                 >
                   {log.message}
@@ -252,23 +256,23 @@ export function DataAggregationPanel({ countryId, onJobComplete, onYearChange }:
 
       {recentJobs.length > 0 && !isJobActive && (
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground mb-2">Recent Jobs</h4>
+          <h4 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Recent Jobs</h4>
           <div className="space-y-1">
             {recentJobs.slice(0, 5).map((job) => (
-              <div key={job.id} className="flex items-center justify-between text-xs p-2 bg-secondary/30 rounded">
-                <span>{job.year}</span>
+              <div key={job.id} className="flex items-center justify-between text-xs p-2 bg-gray-900/50 border border-orange-500/20">
+                <span className="text-white">{job.year}</span>
                 <span
-                  className={`px-2 py-0.5 rounded ${
+                  className={`px-2 py-0.5 text-xs uppercase tracking-wide ${
                     job.status === 'completed'
-                      ? 'bg-green-100 text-green-700'
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/50'
                       : job.status === 'failed'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-gray-100 text-gray-700'
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                      : 'bg-gray-500/20 text-gray-400 border border-gray-500/50'
                   }`}
                 >
                   {job.status}
                 </span>
-                <span className="text-muted-foreground">
+                <span className="text-gray-400">
                   {job.completedMetrics}/{job.totalMetrics}
                 </span>
               </div>

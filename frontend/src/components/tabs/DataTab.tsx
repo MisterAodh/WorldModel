@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { updateMetrics, updateIndustry } from '../../lib/api';
-import { Save, Plus } from 'lucide-react';
+import { Save, Plus, X, Maximize2 } from 'lucide-react';
 import { CountryDataSpreadsheet } from '../CountryDataSpreadsheet';
 import { DataAggregationPanel } from '../DataAggregationPanel';
+import { createPortal } from 'react-dom';
 
 export function DataTab() {
   const { contextData, selectedCountryId, refreshContext } = useStore();
@@ -13,6 +14,7 @@ export function DataTab() {
   const [newIndustry, setNewIndustry] = useState({ name: '', share: '' });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   if (!contextData) return null;
 
@@ -51,10 +53,44 @@ export function DataTab() {
     }
   };
 
+  // Fullscreen modal for the data spreadsheet
+  const fullscreenModal = isFullscreen && selectedCountryId ? createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/90">
+      <div className="relative w-full h-full max-w-[95vw] max-h-[95vh] bg-black border-2 border-orange-500 shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-orange-500 bg-black">
+          <h2 className="text-lg font-bold text-orange-500 uppercase tracking-wide">
+            {contextData.country?.name || 'Country'} - Data Spreadsheet
+          </h2>
+          <button
+            onClick={() => setIsFullscreen(false)}
+            className="p-2 text-white hover:bg-orange-500 hover:text-black transition-colors border border-orange-500"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="flex-1 overflow-hidden">
+          <CountryDataSpreadsheet
+            countryId={selectedCountryId}
+            year={selectedYear}
+            onYearChange={setSelectedYear}
+            refreshKey={refreshKey}
+          />
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div className="p-6 space-y-6 h-full flex flex-col">
+    <div className="p-6 space-y-6 h-full flex flex-col bg-black">
+      {fullscreenModal}
+      
       {!selectedCountryId && (
-        <p className="text-sm text-muted-foreground">Select a country to view deep data.</p>
+        <p className="text-sm text-gray-400">Select a country to view deep data.</p>
       )}
 
       {selectedCountryId && (
@@ -71,7 +107,18 @@ export function DataTab() {
       )}
 
       {selectedCountryId && (
-        <div className="flex-1 min-h-[300px] border rounded-lg overflow-hidden">
+        <div 
+          className="flex-1 min-h-[300px] border border-orange-500/30 overflow-hidden relative group cursor-pointer"
+          onClick={() => setIsFullscreen(true)}
+        >
+          {/* Expand overlay hint */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors z-10 flex items-center justify-center pointer-events-none">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 text-orange-500 bg-black/80 px-4 py-2 border border-orange-500">
+              <Maximize2 className="w-5 h-5" />
+              <span className="text-sm font-medium uppercase tracking-wide">Click to expand</span>
+            </div>
+          </div>
+          
           <CountryDataSpreadsheet
             countryId={selectedCountryId}
             year={selectedYear}
@@ -81,8 +128,8 @@ export function DataTab() {
         </div>
       )}
 
-      <details className="rounded-lg border p-4">
-        <summary className="text-sm font-semibold uppercase text-muted-foreground cursor-pointer">
+      <details className="border border-orange-500/30 p-4 bg-black">
+        <summary className="text-sm font-semibold uppercase tracking-wide text-gray-400 cursor-pointer hover:text-orange-500 transition-colors">
           Legacy Metrics and Industries
         </summary>
 
@@ -90,7 +137,7 @@ export function DataTab() {
       {/* Metrics Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-orange-500">
             Metrics
           </h3>
           {selectedCountryId && (
@@ -103,7 +150,7 @@ export function DataTab() {
                   setEditingMetrics(true);
                 }
               }}
-              className="p-2 hover:bg-secondary rounded-md transition-colors"
+              className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-500/10 transition-colors"
             >
               <Save className="w-4 h-4" />
             </button>
@@ -161,7 +208,7 @@ export function DataTab() {
             />
             <button
               onClick={() => setEditingMetrics(false)}
-              className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors text-sm"
+              className="w-full px-4 py-2 bg-gray-800 text-white border border-orange-500/30 hover:bg-gray-700 transition-colors text-sm uppercase tracking-wide"
             >
               Cancel
             </button>
@@ -179,7 +226,7 @@ export function DataTab() {
                 <DataRow label="Famine Deaths" value={`${contextData.metrics.famineDeathsPercent || 'N/A'}%`} />
               </>
             ) : (
-              <p className="text-muted-foreground">No metrics data available</p>
+              <p className="text-gray-500">No metrics data available</p>
             )}
           </div>
         )}
@@ -189,12 +236,12 @@ export function DataTab() {
       {selectedCountryId && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-orange-500">
               Industries
             </h3>
             <button
               onClick={() => setAddingIndustry(!addingIndustry)}
-              className="p-2 hover:bg-secondary rounded-md transition-colors"
+              className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-500/10 transition-colors"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -217,7 +264,7 @@ export function DataTab() {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm"
+                  className="flex-1 px-4 py-2 bg-orange-500 text-black font-medium uppercase tracking-wide hover:bg-orange-400 transition-colors text-sm"
                 >
                   Add
                 </button>
@@ -227,7 +274,7 @@ export function DataTab() {
                     setAddingIndustry(false);
                     setNewIndustry({ name: '', share: '' });
                   }}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors text-sm"
+                  className="px-4 py-2 bg-gray-800 text-white border border-orange-500/30 hover:bg-gray-700 transition-colors text-sm uppercase tracking-wide"
                 >
                   Cancel
                 </button>
@@ -239,16 +286,16 @@ export function DataTab() {
             {contextData.industries.map((industry) => (
               <div
                 key={industry.id}
-                className="flex items-center justify-between p-3 bg-secondary/50 rounded-md"
+                className="flex items-center justify-between p-3 bg-gray-900/50 border border-orange-500/20"
               >
-                <span className="text-sm font-medium">{industry.industryName}</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium text-white">{industry.industryName}</span>
+                <span className="text-sm text-orange-500 font-mono">
                   {industry.gdpSharePercent.toFixed(1)}%
                 </span>
               </div>
             ))}
             {contextData.industries.length === 0 && (
-              <p className="text-sm text-muted-foreground">No industries added yet</p>
+              <p className="text-sm text-gray-500">No industries added yet</p>
             )}
           </div>
         </div>
@@ -274,7 +321,7 @@ function InputField({
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">
+      <label className="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wide">
         {label}
       </label>
       <input
@@ -282,7 +329,7 @@ function InputField({
         step={step}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        className="w-full px-3 py-2 bg-black border border-orange-500/50 text-white text-sm focus:outline-none focus:border-orange-500 font-mono"
       />
     </div>
   );
@@ -290,9 +337,9 @@ function InputField({
 
 function DataRow({ label, value }: { label: string; value: any }) {
   return (
-    <div className="flex items-center justify-between p-2 bg-secondary/50 rounded-md">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+    <div className="flex items-center justify-between p-2 bg-gray-900/50 border border-orange-500/20">
+      <span className="text-gray-400">{label}</span>
+      <span className="font-medium text-white font-mono">{value}</span>
     </div>
   );
 }

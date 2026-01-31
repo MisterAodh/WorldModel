@@ -39,22 +39,12 @@ function interpolateColor(score: number, category: string): string {
     const b = Math.round(255 * normalized);       // 0 -> 255
     return `rgb(${r}, ${g}, ${b})`;
   } else {
-    // Standard: red -> yellow -> green
-    if (normalized < 0.5) {
-      // Red to Yellow (0 to 0.5)
-      const t = normalized * 2; // 0 to 1
-      const r = Math.round(255);
-      const g = Math.round(0 + 255 * t);
-      const b = Math.round(0);
-      return `rgb(${r}, ${g}, ${b})`;
-    } else {
-      // Yellow to Green (0.5 to 1)
-      const t = (normalized - 0.5) * 2; // 0 to 1
-      const r = Math.round(255 - 255 * t);
-      const g = Math.round(255);
-      const b = Math.round(0);
-      return `rgb(${r}, ${g}, ${b})`;
-    }
+    // Direct red to green (no yellow) for economic and social
+    // Red (#FF0000) at -10, Green (#00FF00) at +10
+    const r = Math.round(255 * (1 - normalized)); // 255 -> 0
+    const g = Math.round(255 * normalized);       // 0 -> 255
+    const b = 0;
+    return `rgb(${r}, ${g}, ${b})`;
   }
 }
 
@@ -66,20 +56,38 @@ const categoryDisplayNames = {
 };
 
 export function WorldMap() {
-  const { countries, selectCountry, selectedCountryId, colorDimension, setColorDimension, contextData } = useStore();
+  const { countries, selectCountry, selectedCountryId, colorDimension, setColorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides } = useStore();
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [hoveredIso3, setHoveredIso3] = useState<string | null>(null);
   const [countryColors, setCountryColors] = useState<Record<string, string>>({});
   const [showDropdown, setShowDropdown] = useState(false);
+  
+  // Track which countries have user overrides (for yellow borders)
+  const [countriesWithOverrides, setCountriesWithOverrides] = useState<Set<string>>(new Set());
 
   // Fetch tags for all countries to color the map
+  // Respects per-country user overrides
   useEffect(() => {
     const fetchAllTags = async () => {
       const colors: Record<string, string> = {};
+      const overrideCountries = new Set<string>();
       
       for (const country of countries) {
         try {
-          const response = await getTags('country', country.id);
+          // Check for per-country override first, then fall back to global view mode
+          let userIdToFetch: string | undefined;
+          
+          if (country.id in countryUserOverrides) {
+            const overrideUserId = countryUserOverrides[country.id];
+            if (overrideUserId) {
+              userIdToFetch = overrideUserId;
+              overrideCountries.add(country.iso3);
+            }
+          } else if (viewMode === 'network' && selectedNetworkUserId) {
+            userIdToFetch = selectedNetworkUserId;
+          }
+          
+          const response = await getTags('country', country.id, userIdToFetch);
           const allTags = response.data.all || [];
           
           // Filter tags for the selected dimension and calculate rolling score
@@ -100,12 +108,13 @@ export function WorldMap() {
       }
       
       setCountryColors(colors);
+      setCountriesWithOverrides(overrideCountries);
     };
 
     if (countries.length > 0) {
       fetchAllTags();
     }
-  }, [countries, colorDimension, contextData]);
+  }, [countries, colorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides]);
 
   const onClick = useCallback((event: MapLayerMouseEvent) => {
     const feature = event.features?.[0];
@@ -152,11 +161,18 @@ export function WorldMap() {
       ]
     : '#1f2937'; // Use simple color until we have country data
 
-  // Create border color expression to highlight selected country
+  // Create border color expression to highlight selected country and countries with overrides
+  // Priority: selected (blue) > override (yellow) > hover (light blue) > default (white)
+  const overrideIso3List = Array.from(countriesWithOverrides);
+  
   const borderColorExpression: any = [
     'case',
     ['==', ['get', 'iso_3166_1_alpha_3'], selectedIso3 || ''],
     '#3b82f6', // blue for selected
+    // Check if country has an override (yellow)
+    ...(overrideIso3List.length > 0 
+      ? [['in', ['get', 'iso_3166_1_alpha_3'], ['literal', overrideIso3List]], '#eab308'] // yellow for overrides
+      : []),
     ['==', ['get', 'iso_3166_1_alpha_3'], hoveredIso3 || ''],
     '#60a5fa', // lighter blue for hover
     '#ffffff' // default white
@@ -166,6 +182,10 @@ export function WorldMap() {
     'case',
     ['==', ['get', 'iso_3166_1_alpha_3'], selectedIso3 || ''],
     3, // thicker for selected
+    // Thicker border for countries with overrides
+    ...(overrideIso3List.length > 0 
+      ? [['in', ['get', 'iso_3166_1_alpha_3'], ['literal', overrideIso3List]], 2]
+      : []),
     ['==', ['get', 'iso_3166_1_alpha_3'], hoveredIso3 || ''],
     2, // medium for hover
     1 // default
@@ -173,21 +193,21 @@ export function WorldMap() {
 
   return (
     <div className="relative w-full h-full">
-      {/* Metric Selector Dropdown */}
-      <div className="absolute top-4 right-4 z-10">
+      {/* Metric Selector Dropdown - positioned below the Select Country button area */}
+      <div className="absolute top-16 left-4 z-10">
         <div className="relative">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="bg-card border border-border rounded-lg px-4 py-2 shadow-lg flex items-center gap-2 hover:bg-secondary transition-colors"
+            className="bg-black border border-orange-500 px-4 py-2 shadow-lg flex items-center gap-2 hover:bg-orange-500 hover:text-black transition-colors text-white"
           >
-            <span className="text-sm font-medium">
+            <span className="text-sm font-medium uppercase tracking-wide">
               {categoryDisplayNames[colorDimension]}
             </span>
             <ChevronDown className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
           </button>
           
           {showDropdown && (
-            <div className="absolute top-full mt-2 right-0 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[200px]">
+            <div className="absolute top-full mt-1 left-0 bg-black border border-orange-500 shadow-lg overflow-hidden min-w-[220px]">
               {(Object.keys(categoryDisplayNames) as Array<keyof typeof categoryDisplayNames>).map((key) => (
                 <button
                   key={key}
@@ -195,8 +215,8 @@ export function WorldMap() {
                     setColorDimension(key);
                     setShowDropdown(false);
                   }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary transition-colors ${
-                    colorDimension === key ? 'bg-primary/20 text-primary' : ''
+                  className={`w-full text-left px-4 py-2 text-sm uppercase tracking-wide transition-colors ${
+                    colorDimension === key ? 'bg-orange-500 text-black' : 'text-white hover:bg-orange-500/20'
                   }`}
                 >
                   {categoryDisplayNames[key]}
@@ -265,14 +285,14 @@ export function WorldMap() {
 
       {/* Hover Tooltip */}
       {hoveredCountry && (
-        <div className="absolute top-4 left-4 bg-card border border-border rounded-lg px-4 py-2 shadow-lg">
-          <p className="text-sm font-medium">{hoveredCountry}</p>
+        <div className="absolute top-4 left-4 bg-black border border-orange-500 px-4 py-2 shadow-lg">
+          <p className="text-sm font-medium text-white uppercase tracking-wide">{hoveredCountry}</p>
         </div>
       )}
 
       {/* Color Legend */}
-      <div className="absolute bottom-4 left-4 bg-card border border-border rounded-lg p-4 shadow-lg">
-        <p className="text-xs font-semibold mb-3 uppercase text-muted-foreground">
+      <div className="absolute bottom-4 left-4 bg-black border border-orange-500 p-4 shadow-lg">
+        <p className="text-xs font-semibold mb-3 uppercase text-orange-500 tracking-wide">
           {categoryDisplayNames[colorDimension]} Score
         </p>
         <div className="space-y-2">
@@ -280,54 +300,50 @@ export function WorldMap() {
             // Special legend for Political Stability (red -> pink -> blue)
             <>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(-10, 'political') }}></div>
-                <span className="text-xs">-10 (Red)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(-10, 'political') }}></div>
+                <span className="text-xs text-white">-10 (Red)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(0, 'political') }}></div>
-                <span className="text-xs">0 (Pink)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(0, 'political') }}></div>
+                <span className="text-xs text-white">0 (Pink)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(10, 'political') }}></div>
-                <span className="text-xs">+10 (Blue)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(10, 'political') }}></div>
+                <span className="text-xs text-white">+10 (Blue)</span>
               </div>
             </>
           ) : colorDimension === 'ideological' ? (
             // Conservative (red) to Progressive (blue)
             <>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(-10, 'ideological') }}></div>
-                <span className="text-xs">-10 Conservative (Red)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(-10, 'ideological') }}></div>
+                <span className="text-xs text-white">-10 Conservative</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(0, 'ideological') }}></div>
-                <span className="text-xs">0 (Purple)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(0, 'ideological') }}></div>
+                <span className="text-xs text-white">0 (Purple)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(10, 'ideological') }}></div>
-                <span className="text-xs">+10 Progressive (Blue)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(10, 'ideological') }}></div>
+                <span className="text-xs text-white">+10 Progressive</span>
               </div>
             </>
           ) : (
-            // Standard legend (red -> yellow -> green)
+            // Standard legend (red -> green, no yellow)
             <>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(-10, 'economic') }}></div>
-                <span className="text-xs">-10 (Red)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(-10, 'economic') }}></div>
+                <span className="text-xs text-white">-10 (Red)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(0, 'economic') }}></div>
-                <span className="text-xs">0 (Yellow)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: interpolateColor(10, 'economic') }}></div>
-                <span className="text-xs">+10 (Green)</span>
+                <div className="w-4 h-4" style={{ backgroundColor: interpolateColor(10, 'economic') }}></div>
+                <span className="text-xs text-white">+10 (Green)</span>
               </div>
             </>
           )}
-          <div className="flex items-center gap-2 pt-2 border-t border-border">
-            <div className="w-4 h-4 bg-gray-700 rounded"></div>
-            <span className="text-xs">No Data</span>
+          <div className="flex items-center gap-2 pt-2 border-t border-orange-500/30">
+            <div className="w-4 h-4 bg-gray-700"></div>
+            <span className="text-xs text-white">No Data</span>
           </div>
         </div>
       </div>

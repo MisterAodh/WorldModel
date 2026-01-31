@@ -1,48 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
+  /* Bloomberg Terminal Theme */
+  --background: 0 0% 0%;              /* Pitch black */
+  --foreground: 0 0% 100%;            /* White text */
 
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
+  --card: 0 0% 5%;                    /* Slightly lighter black for cards */
+  --card-foreground: 0 0% 100%;       /* White text */
 
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
+  --popover: 0 0% 8%;                 /* Dark popover */
+  --popover-foreground: 0 0% 100%;    /* White text */
 
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
+  --primary: 30 100% 50%;             /* Bloomberg orange #FF8000 */
+  --primary-foreground: 0 0% 0%;      /* Black text on orange */
 
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 0 0% 20%;              /* Dark grey #333333 */
+  --secondary-foreground: 0 0% 100%;  /* White text */
 
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
+  --muted: 0 0% 15%;                  /* Muted dark grey */
+  --muted-foreground: 0 0% 70%;       /* Light grey text */
 
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 30 100% 50%;              /* Orange accent */
+  --accent-foreground: 0 0% 0%;       /* Black text */
 
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive: 0 70% 50%;           /* Red */
+  --destructive-foreground: 0 0% 100%; /* White text */
 
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 224.3 76.3% 48%;
+  --border: 30 100% 50%;              /* Orange borders */
+  --input: 0 0% 15%;                  /* Dark input background */
+  --ring: 30 100% 50%;                /* Orange ring */
 
-  --radius: 0.5rem;
+  --radius: 0;                        /* Sharp corners */
 }
 
 * {
-  border-color: hsl(var(--border));
+  border-color: hsl(var(--border) / 0.3);
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'IBM Plex Mono', 'Consolas', 'Monaco', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: hsl(var(--background));
@@ -50,11 +51,81 @@ body {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: 'IBM Plex Mono', 'Consolas', 'Monaco', monospace;
 }
 
+/* Bloomberg-style scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(0 0% 5%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(30 100% 50% / 0.5);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(30 100% 50% / 0.8);
+}
+
+/* Hide Mapbox attribution */
 .mapboxgl-ctrl-logo,
 .mapboxgl-ctrl-attrib {
   display: none !important;
 }
+
+/* Bloomberg-style button base */
+.btn-bloomberg {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 0;
+}
+
+/* Orange border utility */
+.border-bloomberg {
+  border-color: hsl(30 100% 50%);
+}
+
+/* Network View Mode - Yellow theme when viewing someone else's data */
+.network-view-mode {
+  --primary: 50 100% 50%;             /* Yellow #FFD000 */
+  --accent: 50 100% 50%;              /* Yellow accent */
+  --border: 50 100% 50%;              /* Yellow borders */
+  --ring: 50 100% 50%;                /* Yellow ring */
+}
+
+.network-view-mode ::-webkit-scrollbar-thumb {
+  background: hsl(50 100% 50% / 0.5);
+}
+
+.network-view-mode ::-webkit-scrollbar-thumb:hover {
+  background: hsl(50 100% 50% / 0.8);
+}
+
+.network-view-mode .border-bloomberg {
+  border-color: hsl(50 100% 50%);
+}
+
+/* Override Tailwind orange classes in network mode */
+.network-view-mode .text-orange-500 { color: hsl(50 100% 50%); }
+.network-view-mode .text-orange-400 { color: hsl(50 100% 60%); }
+.network-view-mode .bg-orange-500 { background-color: hsl(50 100% 50%); }
+.network-view-mode .bg-orange-400 { background-color: hsl(50 100% 60%); }
+.network-view-mode .bg-orange-500\/10 { background-color: hsl(50 100% 50% / 0.1); }
+.network-view-mode .bg-orange-500\/20 { background-color: hsl(50 100% 50% / 0.2); }
+.network-view-mode .border-orange-500 { border-color: hsl(50 100% 50%); }
+.network-view-mode .border-orange-500\/30 { border-color: hsl(50 100% 50% / 0.3); }
+.network-view-mode .border-orange-500\/50 { border-color: hsl(50 100% 50% / 0.5); }
+.network-view-mode .hover\:text-orange-500:hover { color: hsl(50 100% 50%); }
+.network-view-mode .hover\:text-orange-400:hover { color: hsl(50 100% 60%); }
+.network-view-mode .hover\:bg-orange-500:hover { background-color: hsl(50 100% 50%); }
+.network-view-mode .hover\:bg-orange-400:hover { background-color: hsl(50 100% 60%); }
+.network-view-mode .hover\:bg-orange-500\/10:hover { background-color: hsl(50 100% 50% / 0.1); }
+.network-view-mode .hover\:bg-orange-500\/90:hover { background-color: hsl(50 100% 50% / 0.9); }

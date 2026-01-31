@@ -1,15 +1,17 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { claude } from '../lib/claude.js';
+import { optionalAuth } from '../middleware/auth.js';
+import { billedClaudeCall } from '../lib/billing.js';
 
 export const chatRoutes = Router();
 
 // Chat endpoint
-chatRoutes.post('/', async (req, res) => {
+chatRoutes.post('/', optionalAuth, async (req, res) => {
   try {
     const { message, contextType, contextId, conversationHistory = [] } = req.body;
 
-    // Gather context data
+    // Gather context data - filter by user if authenticated
     let contextData: any = {};
 
     if (contextType === 'country' && contextId) {
@@ -18,11 +20,15 @@ chatRoutes.post('/', async (req, res) => {
         where: { id: contextId },
       });
 
-      // Get latest tags
+      // Build user filter
+      const userFilter = req.userId ? { userId: req.userId } : {};
+
+      // Get latest tags (filtered by user if logged in)
       const tags = await prisma.qualitativeTag.findMany({
         where: {
           scopeType: 'COUNTRY',
           scopeId: contextId,
+          ...userFilter,
         },
         orderBy: { createdAt: 'desc' },
         distinct: ['category'],
@@ -44,9 +50,12 @@ chatRoutes.post('/', async (req, res) => {
         take: 10,
       });
 
-      // Get recent articles
+      // Get recent articles (filtered by user if logged in)
       const articleLinks = await prisma.articleCountryLink.findMany({
-        where: { countryId: contextId },
+        where: { 
+          countryId: contextId,
+          article: userFilter.userId ? { userId: userFilter.userId } : undefined,
+        },
         include: {
           article: true,
         },
@@ -58,11 +67,12 @@ chatRoutes.post('/', async (req, res) => {
         take: 5,
       });
 
-      // Get notes
+      // Get notes (filtered by user if logged in)
       const notes = await prisma.note.findMany({
         where: {
           scopeType: 'COUNTRY',
           scopeId: contextId,
+          ...userFilter,
         },
         orderBy: { updatedAt: 'desc' },
         take: 3,
@@ -112,11 +122,15 @@ chatRoutes.post('/', async (req, res) => {
 
       const countryIds = region?.memberships.map(m => m.countryId) || [];
 
+      // Build user filter
+      const userFilter = req.userId ? { userId: req.userId } : {};
+
       // Get region-specific tags
       const tags = await prisma.qualitativeTag.findMany({
         where: {
           scopeType: 'REGION',
           scopeId: contextId,
+          ...userFilter,
         },
         orderBy: { createdAt: 'desc' },
         distinct: ['category'],
@@ -194,73 +208,111 @@ Do NOT respond with general knowledge for current events - USE WEB SEARCH and CI
         role: msg.role === 'assistant' ? 'assistant' : 'user',
         content: msg.content,
       })),
-      { role: 'user', content: message },
+      { role: 'user' as const, content: message },
     ];
 
-    // Use Claude's native web search tool
-    const response = await claude.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
-      system: systemPrompt,
-      messages: claudeMessages,
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 5,
-        } as any
-      ],
-    });
-
-    console.log('Claude response:', response);
-    console.log('Stop reason:', response.stop_reason);
-
-    // Extract assistant message from response
     let assistantMessage = '';
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        assistantMessage += block.text;
-      }
-    }
+    let searchResults: any[] = [];
 
-    // Extract search results if Claude used web search
-    // With web_search_20250305, search results may be in various places
-    const searchResults: any[] = [];
-    const responseAny = response as any;
-    
-    console.log('🔍 Checking for search results...');
-    console.log('Response keys:', Object.keys(responseAny));
-    
-    // Check multiple possible locations for search results
-    const possibleLocations = [
-      { path: 'search_results', data: responseAny.search_results },
-      { path: 'metadata.search_results', data: responseAny.metadata?.search_results },
-      { path: 'usage.search_results', data: responseAny.usage?.search_results },
-      { path: 'search_queries', data: responseAny.search_queries },
-    ];
-    
-    for (const location of possibleLocations) {
-      if (location.data && Array.isArray(location.data)) {
-        console.log(`✅ Found search results in ${location.path}:`, location.data.length);
-        const results = location.data.map((result: any) => ({
-          title: result.title || result.name || 'Untitled',
-          url: result.url || result.link || '',
-          snippet: result.content || result.snippet || result.description || '',
-        }));
-        searchResults.push(...results);
+    // Use billed call if user is authenticated
+    if (req.userId) {
+      try {
+        const result = await billedClaudeCall(
+          req.userId,
+          'chat',
+          {
+            model: 'claude-sonnet-4-5',
+            max_tokens: 2000,
+            system: systemPrompt,
+            messages: claudeMessages,
+            tools: [
+              {
+                type: 'web_search_20250305',
+                name: 'web_search',
+                max_uses: 5,
+              } as any
+            ],
+          },
+          2000 // Estimated input tokens
+        );
+
+        // Extract assistant message from response
+        for (const block of result.response.content) {
+          if (block.type === 'text') {
+            assistantMessage += block.text;
+          }
+        }
+
+        // Extract search results
+        const responseAny = result.response as any;
+        const possibleLocations = [
+          { path: 'search_results', data: responseAny.search_results },
+          { path: 'metadata.search_results', data: responseAny.metadata?.search_results },
+          { path: 'usage.search_results', data: responseAny.usage?.search_results },
+          { path: 'search_queries', data: responseAny.search_queries },
+        ];
+
+        for (const location of possibleLocations) {
+          if (location.data && Array.isArray(location.data)) {
+            const results = location.data.map((r: any) => ({
+              title: r.title || r.name || 'Untitled',
+              url: r.url || r.link || '',
+              snippet: r.content || r.snippet || r.description || '',
+            }));
+            searchResults.push(...results);
+          }
+        }
+      } catch (error: any) {
+        if (error.message === 'Insufficient credits') {
+          return res.status(402).json({
+            error: 'Insufficient credits',
+            message: 'You need to purchase more credits to use the AI chat. Please go to Settings > Billing to add credits.',
+          });
+        }
+        throw error;
       }
-    }
-    
-    if (searchResults.length > 0) {
-      console.log(`🔍 Total search results to send to frontend: ${searchResults.length}`);
-      searchResults.forEach((r, i) => {
-        console.log(`  ${i + 1}. ${r.title}`);
-        console.log(`     ${r.url}`);
-      });
     } else {
-      console.log('⚠️  No search results found in response');
-      // Log the full structure to help debug
-      console.log('Full response structure:', JSON.stringify(responseAny, null, 2).slice(0, 1000));
+      // Non-authenticated call (legacy support)
+      const response = await claude.messages.create({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: claudeMessages,
+        tools: [
+          {
+            type: 'web_search_20250305',
+            name: 'web_search',
+            max_uses: 5,
+          } as any
+        ],
+      });
+
+      // Extract assistant message from response
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          assistantMessage += block.text;
+        }
+      }
+
+      // Extract search results
+      const responseAny = response as any;
+      const possibleLocations = [
+        { path: 'search_results', data: responseAny.search_results },
+        { path: 'metadata.search_results', data: responseAny.metadata?.search_results },
+        { path: 'usage.search_results', data: responseAny.usage?.search_results },
+        { path: 'search_queries', data: responseAny.search_queries },
+      ];
+
+      for (const location of possibleLocations) {
+        if (location.data && Array.isArray(location.data)) {
+          const results = location.data.map((r: any) => ({
+            title: r.title || r.name || 'Untitled',
+            url: r.url || r.link || '',
+            snippet: r.content || r.snippet || r.description || '',
+          }));
+          searchResults.push(...results);
+        }
+      }
     }
 
     // Check if user is asking for structured suggestions
@@ -273,8 +325,8 @@ Do NOT respond with general knowledge for current events - USE WEB SEARCH and CI
     // If requesting updates, generate structured suggestions
     if (isRequestingUpdates && contextId) {
       try {
-        const suggestionResponse = await claude.messages.create({
-          model: 'claude-3-sonnet-20240229',
+        const suggestionPrompt = {
+          model: 'claude-3-sonnet-20240229' as const,
           max_tokens: 1000,
           system: `Based on the conversation, generate structured suggestions for updating the database.
 
@@ -294,14 +346,25 @@ Return ONLY valid JSON in this format:
 Only return suggestions if you have enough information. If not, return {"suggestions": []}.`,
           messages: [
             ...claudeMessages,
-            { role: 'assistant', content: assistantMessage },
+            { role: 'assistant' as const, content: assistantMessage },
           ],
-        });
+        };
 
         let suggestionsText = '';
-        for (const block of suggestionResponse.content) {
-          if (block.type === 'text') {
-            suggestionsText += block.text;
+        
+        if (req.userId) {
+          const result = await billedClaudeCall(req.userId, 'suggestions', suggestionPrompt, 500);
+          for (const block of result.response.content) {
+            if (block.type === 'text') {
+              suggestionsText += block.text;
+            }
+          }
+        } else {
+          const suggestionResponse = await claude.messages.create(suggestionPrompt);
+          for (const block of suggestionResponse.content) {
+            if (block.type === 'text') {
+              suggestionsText += block.text;
+            }
           }
         }
 

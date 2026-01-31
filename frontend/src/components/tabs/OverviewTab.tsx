@@ -12,10 +12,10 @@ export function OverviewTab() {
   const displayMetrics = metrics || aggregatedMetrics;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-black">
       {/* Qualitative Tags */}
       <div>
-        <h3 className="text-sm font-semibold mb-3 uppercase text-muted-foreground">
+        <h3 className="text-sm font-semibold mb-3 uppercase tracking-wide text-orange-500">
           Rolling Score Analysis
         </h3>
         <QualitativeTagsEditor />
@@ -24,7 +24,7 @@ export function OverviewTab() {
       {/* Key Metrics */}
       {displayMetrics && (
         <div>
-          <h3 className="text-sm font-semibold mb-3 uppercase text-muted-foreground">
+          <h3 className="text-sm font-semibold mb-3 uppercase tracking-wide text-orange-500">
             Key Metrics {metrics?.year && `(${metrics.year})`}
           </h3>
           <div className="grid grid-cols-2 gap-3">
@@ -65,17 +65,17 @@ export function OverviewTab() {
       {/* Top Industries */}
       {contextData.industries && contextData.industries.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold mb-3 uppercase text-muted-foreground">
+          <h3 className="text-sm font-semibold mb-3 uppercase tracking-wide text-orange-500">
             Top Industries
           </h3>
           <div className="space-y-2">
             {contextData.industries.slice(0, 5).map((industry) => (
               <div
                 key={industry.id}
-                className="flex items-center justify-between p-3 bg-secondary/50 rounded-md"
+                className="flex items-center justify-between p-3 bg-gray-900/50 border border-orange-500/20"
               >
-                <span className="text-sm font-medium">{industry.industryName}</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium text-white">{industry.industryName}</span>
+                <span className="text-sm text-orange-500 font-mono">
                   {industry.gdpSharePercent.toFixed(1)}%
                 </span>
               </div>
@@ -87,14 +87,14 @@ export function OverviewTab() {
       {/* Notes */}
       {contextData.notes && contextData.notes.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold mb-3 uppercase text-muted-foreground">
+          <h3 className="text-sm font-semibold mb-3 uppercase tracking-wide text-orange-500">
             Notes
           </h3>
           <div className="space-y-2">
             {contextData.notes.map((note) => (
               <div
                 key={note.id}
-                className="p-3 bg-secondary/50 rounded-md text-sm"
+                className="p-3 bg-gray-900/50 border border-orange-500/20 text-sm text-gray-300"
               >
                 {note.content}
               </div>
@@ -108,12 +108,12 @@ export function OverviewTab() {
 
 function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="bg-secondary/50 rounded-lg p-3">
-      <div className="flex items-center gap-2 mb-1 text-muted-foreground">
+    <div className="bg-gray-900/50 border border-orange-500/20 p-3">
+      <div className="flex items-center gap-2 mb-1 text-gray-400">
         {icon}
-        <span className="text-xs font-medium">{label}</span>
+        <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
       </div>
-      <div className="text-lg font-bold">{value}</div>
+      <div className="text-lg font-bold text-white font-mono">{value}</div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { sendChatMessage, createArticle } from '../lib/api';
-import { Send, Loader2, MessageSquare, Plus, ExternalLink, GripHorizontal } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Plus, ExternalLink, GripHorizontal, CreditCard, AlertTriangle } from 'lucide-react';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -14,12 +15,13 @@ type ChatPanelProps = {
 };
 
 export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
-  const { selectedCountryId, selectedRegionId, refreshContext } = useStore();
+  const { selectedCountryId, selectedRegionId, refreshContext, creditBalance } = useStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [hoveredSource, setHoveredSource] = useState<{ url: string; title: string } | null>(null);
   const [addingArticle, setAddingArticle] = useState(false);
+  const [showNoCreditsPrompt, setShowNoCreditsPrompt] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -142,8 +144,6 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
         ? rawTitle.split(' - ').slice(1).join(' - ').trim()
         : rawTitle;
       
-      console.log('📌 Parsed SOURCE:', { rawUrl, normalizedUrl: url, title });
-      
       // Add the source link
       parts.push({
         type: 'source',
@@ -167,7 +167,6 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
     
     // Normalize URL before sending
     const normalizedUrl = normalizeUrl(url);
-    console.log('➕ Adding article:', { originalUrl: url, normalizedUrl, title });
     
     setAddingArticle(true);
     try {
@@ -177,7 +176,6 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
         countryIds: [selectedCountryId],
       });
       await refreshContext();
-      alert(`Added "${title}" to articles!`);
     } catch (error: any) {
       console.error('Error adding article:', error);
       const errorMessage = error?.response?.data?.error || 'Failed to add article. Please check the URL and try again.';
@@ -198,7 +196,6 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
     setLoading(true);
 
     try {
-      console.log('Sending message to API...');
       const response = await sendChatMessage({
         message: userMessage,
         contextType: selectedCountryId ? 'country' : selectedRegionId ? 'region' : undefined,
@@ -206,8 +203,6 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
         conversationHistory: messages.slice(-10), // Last 10 messages for context
       });
 
-      console.log('Response received:', response.data);
-      
       const assistantMessage = response.data.message || 'No response received.';
       const searchResults = response.data.searchResults;
       
@@ -217,14 +212,27 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
       ]);
     } catch (error: any) {
       console.error('Error sending message:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Sorry, I encountered an error. Please try again.';
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: errorMessage,
-        },
-      ]);
+      
+      // Check for insufficient credits (402 status)
+      if (error?.response?.status === 402) {
+        setShowNoCreditsPrompt(true);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: '⚠️ You\'ve run out of AI credits. Please add more credits to continue using the AI assistant.',
+          },
+        ]);
+      } else {
+        const errorMessage = error?.response?.data?.message || error?.message || 'Sorry, I encountered an error. Please try again.';
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: errorMessage,
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -232,31 +240,31 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
 
   return (
     <div 
-      className="border-t border-border bg-card flex flex-col"
+      className="border-t border-orange-500 bg-black flex flex-col"
       style={{ height: panelHeight }}
     >
       {/* Resize Handle */}
       <div
         onMouseDown={handleResizeStart}
-        className={`h-2 flex items-center justify-center cursor-ns-resize hover:bg-secondary/50 transition-colors ${isResizing ? 'bg-secondary' : ''}`}
+        className={`h-2 flex items-center justify-center cursor-ns-resize hover:bg-orange-500/20 transition-colors ${isResizing ? 'bg-orange-500/30' : ''}`}
       >
-        <GripHorizontal className="w-4 h-4 text-muted-foreground" />
+        <GripHorizontal className="w-4 h-4 text-orange-500/50" />
       </div>
       
       {/* Header */}
-      <div className="px-4 py-2 border-b border-border bg-background/50">
+      <div className="px-4 py-2 border-b border-orange-500/30 bg-black">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold">AI Assistant</h3>
+          <MessageSquare className="w-4 h-4 text-orange-500" />
+          <h3 className="text-sm font-semibold text-orange-500 uppercase tracking-wide">AI Assistant</h3>
         </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
-          <div className="text-center text-sm text-muted-foreground py-8">
+          <div className="text-center text-sm text-gray-400 py-8">
             <p className="mb-2">Ask me anything about the selected country or region!</p>
-            <p className="text-xs">
+            <p className="text-xs text-gray-500">
               Try: "Analyze the economic situation" or "Suggest sentiment scores"
             </p>
           </div>
@@ -267,10 +275,10 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
             className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div
-              className={`max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+              className={`max-w-[85%] px-3 py-2 text-sm whitespace-pre-wrap ${
                 message.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-foreground'
+                  ? 'bg-orange-500 text-black'
+                  : 'bg-gray-900 text-white border border-orange-500/30'
               }`}
             >
               {message.role === 'assistant' ? (
@@ -283,33 +291,29 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
                       <button
                         onMouseEnter={() => handleMouseEnterSource(part.url!, part.title!)}
                         onMouseLeave={handleMouseLeaveSource}
-                        className="text-blue-400 hover:text-blue-300 font-medium underline cursor-pointer"
+                        className="text-orange-500 hover:text-orange-400 font-medium underline cursor-pointer"
                       >
                         {part.title}
                       </button>
                       {hoveredSource?.url === part.url && hoveredSource?.title === part.title && (
                         <div 
-                          className="absolute z-50 mt-1 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[160px]"
+                          className="absolute z-50 mt-1 left-0 bg-black border border-orange-500 shadow-lg py-1 min-w-[160px]"
                           onMouseEnter={() => handleMouseEnterSource(part.url!, part.title!)}
                           onMouseLeave={handleMouseLeaveSource}
                         >
                           <button
                             onClick={() => handleAddArticle(part.url!, part.title!)}
                             disabled={!selectedCountryId || addingArticle}
-                            className="w-full px-3 py-2 text-left text-xs hover:bg-secondary transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-3 py-2 text-left text-xs text-white hover:bg-orange-500 hover:text-black transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Plus className="w-3 h-3" />
                             Add to Articles
                           </button>
                           <button
                             onClick={() => {
-                              const url = part.url!;
-                              console.log('🌐 Opening article in new tab:', url);
-                              console.log('   - URL length:', url.length);
-                              console.log('   - Starts with http:', url.startsWith('http'));
-                              window.open(url, '_blank', 'noopener,noreferrer');
+                              window.open(part.url!, '_blank', 'noopener,noreferrer');
                             }}
-                            className="w-full px-3 py-2 text-left text-xs hover:bg-secondary transition-colors flex items-center gap-2"
+                            className="w-full px-3 py-2 text-left text-xs text-white hover:bg-orange-500 hover:text-black transition-colors flex items-center gap-2"
                           >
                             <ExternalLink className="w-3 h-3" />
                             Open Article
@@ -323,16 +327,16 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
                 message.content
               )}
             </div>
-            {message.searchResults && message.searchResults.length > 0 && (
+                {message.searchResults && message.searchResults.length > 0 && (
               <div className="max-w-[85%] mt-2 space-y-1">
                 {message.searchResults.map((result, i) => (
                   <button
                     key={i}
                     onClick={() => onOpenArticle({ url: result.url, title: result.title })}
-                    className="w-full text-left p-2 bg-card border border-border rounded-md hover:bg-card/80 transition-colors"
+                    className="w-full text-left p-2 bg-black border border-orange-500/30 hover:border-orange-500 transition-colors"
                   >
-                    <div className="text-xs font-semibold text-primary line-clamp-1">{result.title}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-2 mt-1">{result.snippet}</div>
+                    <div className="text-xs font-semibold text-orange-500 line-clamp-1">{result.title}</div>
+                    <div className="text-xs text-gray-400 line-clamp-2 mt-1">{result.snippet}</div>
                   </button>
                 ))}
               </div>
@@ -341,16 +345,44 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-secondary px-3 py-2 rounded-lg">
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            <div className="bg-gray-900 px-3 py-2 border border-orange-500/30">
+              <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Insufficient Credits Prompt */}
+      {showNoCreditsPrompt && (
+        <div className="p-4 border-t border-red-500/50 bg-red-500/10">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm text-red-400 font-semibold mb-2">Out of Credits</p>
+              <p className="text-xs text-gray-400 mb-3">
+                You need to purchase more credits to continue using AI features.
+              </p>
+              <Link
+                to="/billing"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-black text-sm font-semibold hover:bg-orange-400 transition-colors"
+              >
+                <CreditCard className="w-4 h-4" />
+                Add Credits
+              </Link>
+            </div>
+            <button
+              onClick={() => setShowNoCreditsPrompt(false)}
+              className="text-gray-500 hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
-      <form onSubmit={handleSend} className="p-4 border-t border-border">
+      <form onSubmit={handleSend} className="p-4 border-t border-orange-500/30">
         <div className="flex gap-2">
           <textarea
             value={input}
@@ -361,19 +393,24 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
                 handleSend(e);
               }
             }}
-            placeholder="Type your message... (Shift+Enter for new line)"
-            className="flex-1 px-4 py-3 bg-secondary border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-            disabled={loading}
+            placeholder={creditBalance <= 0 ? "Add credits to use AI features..." : "Type your message... (Shift+Enter for new line)"}
+            className="flex-1 px-4 py-3 bg-black border border-orange-500/50 text-white text-sm focus:outline-none focus:border-orange-500 resize-none font-mono"
+            disabled={loading || creditBalance <= 0}
             rows={2}
           />
           <button
             type="submit"
-            disabled={loading || !input.trim()}
-            className="px-5 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !input.trim() || creditBalance <= 0}
+            className="px-5 py-2 bg-orange-500 text-black font-medium hover:bg-orange-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </button>
         </div>
+        {creditBalance <= 0 && !showNoCreditsPrompt && (
+          <p className="text-xs text-red-400 mt-2">
+            <Link to="/billing" className="underline hover:text-red-300">Add credits</Link> to use AI features
+          </p>
+        )}
       </form>
     </div>
   );

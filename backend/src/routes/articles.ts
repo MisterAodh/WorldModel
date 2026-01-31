@@ -3,22 +3,33 @@ import { prisma } from '../lib/prisma.js';
 import { claude } from '../lib/claude.js';
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
+import { optionalAuth, requireAuth } from '../middleware/auth.js';
+import { billedClaudeCall } from '../lib/billing.js';
 
 export const articleRoutes = Router();
 
-// Get articles, optionally filtered by country
-articleRoutes.get('/', async (req, res) => {
+// Get articles, optionally filtered by country and/or user
+articleRoutes.get('/', optionalAuth, async (req, res) => {
   try {
-    const { countryId, regionId } = req.query;
+    const { countryId, regionId, userId: filterUserId } = req.query;
 
-    let where = {};
+    let where: any = {};
+    
+    // Filter by user if specified, or by current user if logged in
+    // IMPORTANT: Always filter by user - never return orphaned (null userId) data
+    if (filterUserId) {
+      where.userId = filterUserId as string;
+    } else if (req.userId) {
+      where.userId = req.userId;
+    } else {
+      // No user context - return empty results (don't show orphaned data)
+      return res.json([]);
+    }
     
     if (countryId) {
-      where = {
-        countryLinks: {
-          some: {
-            countryId: countryId as string,
-          },
+      where.countryLinks = {
+        some: {
+          countryId: countryId as string,
         },
       };
     } else if (regionId) {
@@ -29,11 +40,9 @@ articleRoutes.get('/', async (req, res) => {
       });
       const countryIds = memberships.map(m => m.countryId);
       
-      where = {
-        countryLinks: {
-          some: {
-            countryId: { in: countryIds },
-          },
+      where.countryLinks = {
+        some: {
+          countryId: { in: countryIds },
         },
       };
     }
@@ -44,6 +53,14 @@ articleRoutes.get('/', async (req, res) => {
         countryLinks: {
           include: {
             country: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
           },
         },
       },
@@ -59,11 +76,11 @@ articleRoutes.get('/', async (req, res) => {
 });
 
 // Add article by URL
-articleRoutes.post('/', async (req, res) => {
+articleRoutes.post('/', optionalAuth, async (req, res) => {
   try {
     const { url, countryIds = [], keyNotes, title: providedTitle } = req.body;
 
-    console.log('📝 Add article request:', { url, countryIds, keyNotes: keyNotes ? 'present' : 'none', providedTitle });
+    console.log('📝 Add article request:', { url, countryIds, keyNotes: keyNotes ? 'present' : 'none', providedTitle, userId: req.userId });
 
     // Validate URL format
     if (!url || typeof url !== 'string') {
@@ -84,13 +101,18 @@ articleRoutes.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid URL format' });
     }
 
-    // Check if article already exists
-    const existing = await prisma.article.findUnique({
-      where: { url },
+    // Check if article already exists for this user (or globally if no user)
+    const existingWhere: any = { url };
+    if (req.userId) {
+      existingWhere.userId = req.userId;
+    }
+    
+    const existing = await prisma.article.findFirst({
+      where: existingWhere,
     });
 
     if (existing) {
-      console.log('❌ Article already exists with this URL');
+      console.log('❌ Article already exists with this URL for this user');
       return res.status(400).json({ error: 'Article already exists' });
     }
     
@@ -143,25 +165,35 @@ articleRoutes.post('/', async (req, res) => {
                           $('main').text() || 
                           $('body').text().slice(0, 5000);
 
-      // Generate summary using Claude
+      // Generate summary using Claude (with billing if user is authenticated)
       if (articleText.trim().length > 100) {
         try {
-          const completion = await claude.messages.create({
-            model: 'claude-3-haiku-20240307',
-            max_tokens: 200,
-            messages: [
+          const prompt = `You are a news summarization assistant. Create a concise 2-3 sentence summary of this article.\n\nTitle: ${title}\n\nContent: ${articleText.slice(0, 3000)}`;
+          
+          if (req.userId) {
+            const result = await billedClaudeCall(
+              req.userId,
+              'article-summary',
               {
-                role: 'user',
-                content: `You are a news summarization assistant. Create a concise 2-3 sentence summary of this article.\n\nTitle: ${title}\n\nContent: ${articleText.slice(0, 3000)}`,
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 200,
+                messages: [{ role: 'user', content: prompt }],
               },
-            ],
-          });
-
-          summary = completion.content[0]?.type === 'text' ? completion.content[0].text : null;
+              500 // Estimated input tokens
+            );
+            summary = result.response.content[0]?.type === 'text' ? result.response.content[0].text : null;
+          } else {
+            const completion = await claude.messages.create({
+              model: 'claude-3-haiku-20240307',
+              max_tokens: 200,
+              messages: [{ role: 'user', content: prompt }],
+            });
+            summary = completion.content[0]?.type === 'text' ? completion.content[0].text : null;
+          }
           console.log('✅ Generated summary using Claude');
-        } catch (claudeError) {
+        } catch (claudeError: any) {
           console.error('⚠️  Error generating summary:', claudeError);
-          // Continue without summary if Claude fails
+          // Continue without summary if Claude fails (including insufficient credits)
         }
       }
     } catch (fetchError: any) {
@@ -184,6 +216,7 @@ articleRoutes.post('/', async (req, res) => {
         publishDate,
         summary,
         keyNotes,
+        userId: req.userId || null,
         rawMetadata: {
           html: html.slice(0, 10000), // Store first 10k chars of HTML
         },
@@ -199,6 +232,14 @@ articleRoutes.post('/', async (req, res) => {
             country: true,
           },
         },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
       },
     });
 
@@ -211,10 +252,23 @@ articleRoutes.post('/', async (req, res) => {
 });
 
 // Update article (title and keyNotes)
-articleRoutes.patch('/:articleId', async (req, res) => {
+articleRoutes.patch('/:articleId', optionalAuth, async (req, res) => {
   try {
     const { articleId } = req.params;
     const { title, keyNotes } = req.body;
+
+    // Check ownership
+    const existing = await prisma.article.findUnique({
+      where: { id: articleId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    if (existing.userId && req.userId && existing.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to update this article' });
+    }
 
     const article = await prisma.article.update({
       where: { id: articleId },
@@ -228,6 +282,14 @@ articleRoutes.patch('/:articleId', async (req, res) => {
             country: true,
           },
         },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
       },
     });
 
@@ -238,11 +300,58 @@ articleRoutes.patch('/:articleId', async (req, res) => {
   }
 });
 
+// Delete article
+articleRoutes.delete('/:articleId', optionalAuth, async (req, res) => {
+  try {
+    const { articleId } = req.params;
+
+    // Check ownership
+    const existing = await prisma.article.findUnique({
+      where: { id: articleId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    if (existing.userId && req.userId && existing.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this article' });
+    }
+
+    // Delete country links first, then the article
+    await prisma.articleCountryLink.deleteMany({
+      where: { articleId },
+    });
+
+    await prisma.article.delete({
+      where: { id: articleId },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting article:', error);
+    res.status(500).json({ error: 'Failed to delete article' });
+  }
+});
+
 // Link article to country
-articleRoutes.post('/:articleId/countries', async (req, res) => {
+articleRoutes.post('/:articleId/countries', optionalAuth, async (req, res) => {
   try {
     const { articleId } = req.params;
     const { countryId } = req.body;
+
+    // Check ownership
+    const existing = await prisma.article.findUnique({
+      where: { id: articleId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    if (existing.userId && req.userId && existing.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to modify this article' });
+    }
 
     const link = await prisma.articleCountryLink.create({
       data: {
@@ -262,9 +371,22 @@ articleRoutes.post('/:articleId/countries', async (req, res) => {
 });
 
 // Unlink article from country
-articleRoutes.delete('/:articleId/countries/:countryId', async (req, res) => {
+articleRoutes.delete('/:articleId/countries/:countryId', optionalAuth, async (req, res) => {
   try {
     const { articleId, countryId } = req.params;
+
+    // Check ownership
+    const existing = await prisma.article.findUnique({
+      where: { id: articleId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    if (existing.userId && req.userId && existing.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to modify this article' });
+    }
 
     await prisma.articleCountryLink.deleteMany({
       where: {

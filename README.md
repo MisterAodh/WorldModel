@@ -1,67 +1,94 @@
 # World Tracker - Geopolitical Intelligence Workspace
 
-A powerful platform for tracking and analyzing geopolitical intelligence with AI-assisted insights, interactive mapping, and comprehensive data management.
+A powerful multi-user platform for tracking and analyzing geopolitical intelligence with AI-assisted insights, interactive mapping, and comprehensive data management.
+
+## 🆕 Latest Updates (January 2026)
+
+### Multi-User Social Platform
+- **User Accounts**: Sign up and sign in with Clerk authentication
+- **Follow System**: Follow other analysts to see their analysis on your map
+- **Network Analysis View**: Toggle between "My Analysis" and "Network" views
+- **User Profiles**: Public profiles with bio, followers, and world data
+- **User Search**: Find and discover other analysts to follow
+
+### Messaging & Sharing
+- **Direct Messages**: Chat with other users
+- **Article Sharing**: Forward articles with analysis through messages
+- **Unread Notifications**: Badge shows unread message count
+
+### Credits & Billing
+- **Token Tracking**: All AI operations tracked and billed
+- **Credit System**: $5 free credits on signup
+- **Stripe Integration**: Purchase $10 credit packages
+- **Usage Dashboard**: View detailed API usage history
+
+### Deep Data Aggregation
+- **95+ Metrics**: Automated collection using Claude AI with web search
+- **Parallel Processing**: Metrics collected in batches for speed
+- **Real-time Progress**: Watch aggregation in real-time with logs
+- **AI Score Generation**: Auto-generate Economic, Social, Political, and Ideological scores
 
 ## Features
 
 ### 🗺️ Interactive World Map
 - Click countries to view detailed information
-- Color-coded by economic, social, or political sentiment
+- Color-coded by economic, social, or political sentiment (red/green scale)
 - Hover tooltips for quick country identification
 - Real-time visual encoding of qualitative data
 
 ### 📊 Comprehensive Data Management
-- **Qualitative Tags**: Economic, social, and political sentiment analysis (positive/neutral/negative)
-- **Quantitative Metrics**: Population, migration rates, violence statistics, and more
+- **Qualitative Tags**: Economic, social, political, and ideological sentiment analysis (-5 to +5 scale)
+- **Deep Data Aggregation**: 95+ metrics auto-collected by AI
 - **Industry Data**: GDP share breakdown by industry sector
-- **Article Tracking**: Link news articles to multiple countries with AI-generated summaries
+- **Article Tracking**: Link news articles with AI-generated summaries
 - **Notes**: Freeform commentary and analysis per country/region
 
 ### 🤖 AI Assistant
-- Context-aware chat interface always visible
-- Web search integration for current information
+- Context-aware chat with web search integration
 - Automatic proposal of sentiment tags and data updates
-- Manual approval workflow for all AI suggestions
-- Citations and confidence scores for transparency
+- Source citations with clickable links
+- Billed per-token with transparent pricing
 
-### 🌍 Region Management
-- Create logical groupings of countries (e.g., "Gulf States", "My Watchlist")
-- View aggregated metrics across regions
-- Apply tags and analysis at region level
-- Future support for geometric country splits
+### 👥 Social Features
+- Follow other analysts
+- View network's analysis on your map
+- Direct messaging with article sharing
+- Public user profiles and search
 
-### 📰 Article Management
-- Add articles by URL with automatic content extraction
-- AI-generated summaries using Claude
-- Link articles to multiple countries
-- View all articles related to a country or region
+### 💳 Credits System
+- $5 free credits on signup
+- Pay-as-you-go for AI features
+- Purchase $10 credit packages via Stripe
+- Detailed usage tracking and history
 
 ## Architecture
 
-### Backend
-- **Node.js + Express** with TypeScript
-- **PostgreSQL** database with Prisma ORM
-- **Claude API** for chat and summarization
-- **Tavily API** for web search integration
-- RESTful API architecture
-
-### Frontend
-- **React + Vite** with TypeScript
-- **Tailwind CSS** for modern, responsive UI
-- **Mapbox GL JS** for interactive mapping
-- **Zustand** for state management
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Frontend (Vercel)                     │
+│  React + Vite + Clerk Auth + Mapbox GL + Tailwind           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Backend (Railway/Render)                 │
+│  Express + Prisma + Clerk SDK + Stripe + Claude API         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   PostgreSQL Database                        │
+│  Users, Follows, Messages, Articles, Tags, Metrics, etc.    │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Quick Start
 
-For detailed setup, see below. For quick start:
-
 ```bash
-# 1. Copy and configure environment variables
-cp env.example .env
-# Edit .env with your API keys
-
-# 2. Install dependencies
+# 1. Clone and install dependencies
 npm install
+
+# 2. Set up environment variables (see Environment Variables section)
 
 # 3. Setup database
 cd backend && npx prisma db push && npm run db:seed && cd ..
@@ -70,292 +97,236 @@ cd backend && npx prisma db push && npm run db:seed && cd ..
 npm run dev
 ```
 
-That's it! `npm run dev` will:
-- Check for `.env` file
-- Auto-start PostgreSQL if not running
-- Launch frontend and backend servers
+Open http://localhost:5173 in your browser!
 
-Open http://localhost:3000 in your browser!
+## Environment Variables
 
-## Detailed Setup Instructions
+Create a `.env` file in the project root:
 
-### Prerequisites
-- Node.js 18+ and npm
-- PostgreSQL 14+
-- Claude API key (get from https://console.anthropic.com/)
-- Mapbox API token (get from https://account.mapbox.com/)
-- (Optional) Tavily API key for web search (get from https://tavily.com/)
-
-### 1. Clone and Install
-
-```bash
-cd world_tracker
-npm install
-```
-
-### 2. Configure Environment Variables
-
-Copy `env.example` to `.env` in the **root directory** and fill in your values:
-```bash
-cp env.example .env
-```
-
-Then edit `.env` with your actual credentials:
 ```env
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/world_tracker"
 
-# Claude AI (Required for chat and article summaries)
-CLAUDE_API_KEY="sk-ant-your-claude-key"
+# Clerk Authentication
+CLERK_SECRET_KEY="sk_test_..."
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
 
-# Tavily (Required for web search)
-TAVILY_API_KEY="tvly-your-tavily-key"
+# Claude AI (Required for chat and data aggregation)
+CLAUDE_API_KEY="sk-ant-..."
+
+# Stripe Payments (Required for purchasing credits)
+STRIPE_SECRET_KEY="sk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
 
 # Mapbox (Required for map display)
-VITE_MAPBOX_TOKEN="pk.your-mapbox-token"
+VITE_MAPBOX_TOKEN="pk.eyJ1..."
 
-# API URL (usually no need to change)
+# Frontend API URL (for production)
 VITE_API_URL="http://localhost:3001"
+
+# Backend CORS URL (for production)
+FRONTEND_URL="http://localhost:5173"
 ```
 
-**Note:** The frontend and backend now share a single `.env` file at the project root.
+### Getting API Keys
 
-### 3. Database Setup
+1. **Clerk**: Sign up at https://clerk.com and create an application
+2. **Claude**: Get API key from https://console.anthropic.com
+3. **Stripe**: Get keys from https://dashboard.stripe.com/test/apikeys
+4. **Mapbox**: Get token from https://account.mapbox.com
+
+## Deployment (Railway)
+
+### Full Railway Deployment
+
+Deploy the entire application (frontend + backend + database) on Railway:
+
+#### 1. Create Railway Project
 
 ```bash
-# Push Prisma schema to database
-cd backend
-npx prisma db push
+# Install Railway CLI (if not already installed)
+npm install -g @railway/cli
 
-# Seed with country data
-npm run db:seed
+# Login to Railway
+railway login
 ```
 
-### 4. Start Development Servers
+#### 2. Set Up PostgreSQL Database
 
-From the root directory:
+1. Go to [Railway Dashboard](https://railway.app/dashboard)
+2. Create a new project
+3. Click **+ New** → **Database** → **Add PostgreSQL**
+4. Railway will auto-create `DATABASE_URL` for you
+
+#### 3. Deploy Backend
+
+1. Click **+ New** → **GitHub Repo**
+2. Select your repository
+3. Set **Root Directory**: `backend`
+4. Add these environment variables:
+   - `CLERK_SECRET_KEY` - Your Clerk secret key
+   - `CLAUDE_API_KEY` - Your Anthropic API key
+   - `STRIPE_SECRET_KEY` - Your Stripe secret key
+   - `STRIPE_WEBHOOK_SECRET` - Your Stripe webhook secret
+   - `FRONTEND_URL` - Your frontend Railway URL (add after frontend deploys)
+5. Click Deploy - Railway will auto-detect `railway.json`
+
+The backend will automatically:
+- Install dependencies
+- Generate Prisma client
+- Build TypeScript
+- Run database migrations on start
+
+#### 4. Deploy Frontend
+
+1. Click **+ New** → **GitHub Repo**
+2. Select the same repository
+3. Set **Root Directory**: `frontend`
+4. Add these environment variables:
+   - `VITE_CLERK_PUBLISHABLE_KEY` - Your Clerk publishable key
+   - `VITE_MAPBOX_TOKEN` - Your Mapbox access token
+   - `VITE_API_URL` - Your backend Railway URL (e.g., `https://backend-xxxx.railway.app`)
+5. Click Deploy
+
+#### 5. Update CORS
+
+After both services deploy, update the backend's `FRONTEND_URL` environment variable to your frontend's Railway URL.
+
+#### 6. Configure Custom Domain (Optional)
+
+1. Go to your frontend service settings
+2. Click **Settings** → **Networking** → **Generate Domain** or **Add Custom Domain**
+3. For `atlascast.org`:
+   - Add `atlascast.org` as a custom domain
+   - Update your DNS records as instructed by Railway
+
+### Environment Variables Summary
+
+**Backend Service:**
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Auto-provided by Railway PostgreSQL |
+| `CLERK_SECRET_KEY` | From Clerk dashboard |
+| `CLAUDE_API_KEY` | From Anthropic console |
+| `STRIPE_SECRET_KEY` | From Stripe dashboard |
+| `STRIPE_WEBHOOK_SECRET` | From Stripe webhooks |
+| `FRONTEND_URL` | Your frontend Railway/custom URL |
+
+**Frontend Service:**
+| Variable | Description |
+|----------|-------------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | From Clerk dashboard |
+| `VITE_MAPBOX_TOKEN` | From Mapbox account |
+| `VITE_API_URL` | Your backend Railway URL |
+
+### Database Migration
+
+Migrations run automatically on deploy via `railway.json`. For manual operations:
+
 ```bash
-npm run dev
+# Connect to Railway and run commands
+railway run npx prisma db push
+railway run npm run db:seed
 ```
-
-This automatically:
-- ✅ Checks for `.env` file
-- ✅ Starts PostgreSQL (if not running)
-- ✅ Launches backend on http://localhost:3001
-- ✅ Launches frontend on http://localhost:3000
-
-The app is now running at **http://localhost:3000**!
 
 ## API Documentation
 
-### Countries
+### Authentication
+All authenticated routes require a Bearer token from Clerk:
+```
+Authorization: Bearer <clerk-jwt-token>
+```
 
-**GET /api/countries**
-- List all countries
+### User Routes
 
-**GET /api/countries/:id**
-- Get country details with tags, metrics, industries, articles, and notes
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/users/me` | GET | Required | Get current user profile |
+| `/api/users/me` | PATCH | Required | Update profile |
+| `/api/users/search?q=` | GET | Optional | Search users |
+| `/api/users/:id` | GET | Optional | Get public profile |
+| `/api/users/:id/world` | GET | Optional | Get user's world data |
 
-### Regions
+### Follow Routes
 
-**GET /api/regions**
-- List all regions with member countries
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/follows` | POST | Required | Follow a user |
+| `/api/follows/:userId` | DELETE | Required | Unfollow a user |
+| `/api/follows/followers` | GET | Required | List my followers |
+| `/api/follows/following` | GET | Required | List who I follow |
+| `/api/follows/network/:countryId` | GET | Required | Get network data for country |
 
-**GET /api/regions/:id**
-- Get region details with aggregated data
+### Message Routes
 
-**POST /api/regions**
-- Create new region
-- Body: `{ name: string, type?: string, countryIds: string[] }`
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/messages` | GET | Required | Get conversations |
+| `/api/messages/:userId` | GET | Required | Get messages with user |
+| `/api/messages` | POST | Required | Send message |
+| `/api/messages/unread/count` | GET | Required | Get unread count |
 
-**POST /api/regions/:id/members**
-- Add country to region
-- Body: `{ countryId: string }`
+### Billing Routes
 
-**DELETE /api/regions/:id/members/:countryId**
-- Remove country from region
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/billing/balance` | GET | Required | Get credit balance |
+| `/api/billing/usage` | GET | Required | Get usage history |
+| `/api/billing/checkout` | POST | Required | Create Stripe checkout |
+| `/api/billing/webhook` | POST | - | Stripe webhook |
 
-### Tags
+### Data Routes (with optional user scoping)
 
-**GET /api/tags/:scopeType/:scopeId**
-- Get qualitative tags for country or region
-- Returns all tags and latest per category
-
-**POST /api/tags**
-- Create new qualitative tag
-- Body: `{ scopeType: string, scopeId: string, category: string, value: number, note?: string }`
-- category: ECONOMIC | SOCIAL | POLITICAL
-- value: -1 (negative) | 0 (neutral) | 1 (positive)
-
-### Metrics
-
-**GET /api/metrics/:countryId**
-- Get all metrics for a country
-
-**POST /api/metrics**
-- Create or update metrics
-- Body: `{ countryId: string, year: number, population?: number, immigrationRate?: number, ... }`
-
-### Industries
-
-**GET /api/industries/:countryId/:year**
-- Get industries for country and year
-
-**POST /api/industries**
-- Create or update industry
-- Body: `{ countryId: string, year: number, industryName: string, gdpSharePercent: number }`
-
-### Articles
-
-**GET /api/articles?countryId=X&regionId=Y**
-- Get articles, optionally filtered
-
-**POST /api/articles**
-- Add article by URL (fetches content, generates summary)
-- Body: `{ url: string, countryIds?: string[] }`
-
-**POST /api/articles/:articleId/countries**
-- Link article to country
-- Body: `{ countryId: string }`
-
-**DELETE /api/articles/:articleId/countries/:countryId**
-- Unlink article from country
-
-### AI Suggestions
-
-**GET /api/suggestions/:scopeType/:scopeId?status=PENDING**
-- Get AI suggestions for scope
-
-**POST /api/suggestions/:id/approve**
-- Approve suggestion (writes to main tables)
-
-**POST /api/suggestions/:id/reject**
-- Reject suggestion
-
-### Chat
-
-**POST /api/chat**
-- Send message to AI assistant
-- Body: `{ message: string, contextType?: string, contextId?: string, conversationHistory?: Array }`
-- Returns: `{ message: string, contextUsed: object }`
-
-### Notes
-
-**GET /api/notes/:scopeType/:scopeId**
-- Get notes for scope
-
-**POST /api/notes**
-- Create or update note
-- Body: `{ id?: string, scopeType: string, scopeId: string, content: string }`
-
-## Usage Guide
-
-### Basic Workflow
-
-1. **Select a Country**: Click on any country on the map
-2. **View Overview**: See sentiment tags, key metrics, and top industries
-3. **Add Data**: Use the Data tab to add/edit metrics and industries
-4. **Link Articles**: Add relevant news articles in the Articles tab
-5. **AI Analysis**: Ask the AI assistant to analyze current conditions
-6. **Review Suggestions**: Approve or reject AI-proposed updates in the Suggestions tab
-
-### AI-Assisted Labeling
-
-1. Select a country
-2. In the chat, type: "Scan current news and propose economic, social, and political tags"
-3. AI will use web search to find recent news
-4. Structured suggestions appear in the Suggestions tab
-5. Review sources and approve/reject each suggestion
-6. Approved suggestions are written to the database
-
-### Region Management
-
-1. Click "Create Region" button in the sidebar (when no country is selected)
-2. Name your region (e.g., "Gulf States")
-3. Select member countries
-4. Click "Create Region"
-5. Select the region to view aggregated metrics
-
-### Map Color Encoding
-
-- Use the dimension selector to color the map by:
-  - Economic sentiment
-  - Social sentiment
-  - Political sentiment
-- Legend shows color meanings (green=positive, yellow=neutral, red=negative, gray=no data)
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/countries` | GET | - | List all countries |
+| `/api/countries/:id` | GET | Optional | Get country details |
+| `/api/tags/:scopeType/:scopeId` | GET | Optional | Get tags |
+| `/api/tags` | POST | Optional | Create tag |
+| `/api/articles` | GET/POST | Optional | Manage articles |
+| `/api/notes/:scopeType/:scopeId` | GET | Optional | Get notes |
+| `/api/aggregation-jobs` | POST | Optional | Start aggregation |
+| `/api/chat` | POST | Optional | AI chat |
 
 ## Database Schema
 
-### Key Tables
+### User & Social Models
+- **users**: User profiles linked to Clerk
+- **follows**: Follower relationships
+- **messages**: Direct messages with article sharing
+- **token_usage**: API usage tracking
+- **credit_purchases**: Stripe purchase history
 
+### Data Models
 - **countries**: ISO country data
-- **regions**: User-defined groupings
-- **region_memberships**: Country-region relationships
-- **qualitative_tags**: Sentiment tags (audit trail)
-- **country_metrics**: Structural statistics
-- **industry_shares**: GDP breakdown
-- **articles**: News content
-- **article_country_links**: Article-country relationships
-- **notes**: Freeform commentary
-- **ai_suggestions**: Pending AI-proposed changes
-
-## Development
-
-### Database Management
-
-```bash
-# View data in Prisma Studio
-npm run db:studio
-
-# Reset database (warning: deletes all data)
-cd backend
-npx prisma db push --force-reset
-npm run db:seed
-```
-
-### Build for Production
-
-```bash
-# Build both frontend and backend
-npm run build
-
-# Run backend in production
-cd backend
-npm start
-```
+- **qualitative_tags**: Sentiment scores with user ownership
+- **articles**: News articles with user ownership
+- **notes**: User notes per country
+- **country_metric_data**: Deep aggregation data
+- **metric_definitions**: 95+ metric types
 
 ## Tech Stack
 
 ### Backend
-- Express.js - Web framework
-- Prisma - ORM and database toolkit
-- Claude (Anthropic) - AI chat and summarization
-- Tavily - Web search integration
-- Cheerio - HTML parsing for article extraction
-- Zod - Schema validation
+- Express.js with TypeScript
+- Prisma ORM + PostgreSQL
+- Clerk SDK for auth
+- Stripe for payments
+- Claude API for AI features
 
 ### Frontend
-- React 18 - UI framework
-- Vite - Build tool
-- TypeScript - Type safety
-- Tailwind CSS - Styling
-- Mapbox GL JS - Interactive maps
-- Zustand - State management
-- Axios - HTTP client
-- Lucide React - Icons
-- Framer Motion - Animations
+- React 18 + Vite + TypeScript
+- Clerk React for auth UI
+- Mapbox GL JS for maps
+- Tailwind CSS + Bloomberg-style theme
+- Zustand for state management
 
-## Future Enhancements
+## Contributing
 
-- [ ] Geometric region splits (divide countries with custom lines)
-- [ ] Multi-user workspaces with authentication
-- [ ] Historical data tracking and trends
-- [ ] Export reports and visualizations
-- [ ] Bulk import from data sources
-- [ ] Advanced filtering and search
-- [ ] Custom metric definitions
-- [ ] Webhook integrations
-- [ ] Mobile responsive improvements
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
 ## License
 

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { claude } from '../lib/claude.js';
+import { billedClaudeCall } from '../lib/billing.js';
 
 // Concurrency settings
 const BATCH_SIZE = 5; // Process 5 metrics in parallel
@@ -21,7 +22,7 @@ type MetricResult = {
   error?: string;
 };
 
-export async function startAggregationJob(jobId: string): Promise<void> {
+export async function startAggregationJob(jobId: string, userId?: string): Promise<void> {
   const job = await prisma.dataAggregationJob.findUnique({
     where: { id: jobId },
     include: { country: true },
@@ -44,6 +45,10 @@ export async function startAggregationJob(jobId: string): Promise<void> {
 
   await addJobLog(jobId, 'info', `Starting aggregation for ${job.country.name} (${year})`);
   await addJobLog(jobId, 'info', `Total metrics: ${total} (processing ${BATCH_SIZE} in parallel)`);
+  
+  if (userId) {
+    await addJobLog(jobId, 'info', `Billing enabled for user ${userId.slice(-6)}`);
+  }
 
   let completed = 0;
   let failed = 0;
@@ -69,7 +74,7 @@ export async function startAggregationJob(jobId: string): Promise<void> {
 
     // Process batch in parallel
     const batchResults = await Promise.all(
-      batch.map(metric => processMetric(jobId, job, metric, year))
+      batch.map(metric => processMetric(jobId, job, metric, year, userId))
     );
 
     // Handle results and save to DB
@@ -77,6 +82,13 @@ export async function startAggregationJob(jobId: string): Promise<void> {
       if (error) {
         failed++;
         await addJobLog(jobId, 'error', `${metric.code}: ${error}`);
+        
+        // If insufficient credits, stop the job
+        if (error.includes('Insufficient credits')) {
+          await updateJob(jobId, { status: 'failed' });
+          await addJobLog(jobId, 'error', 'Job stopped due to insufficient credits');
+          return;
+        }
         continue;
       }
 
@@ -112,6 +124,7 @@ export async function startAggregationJob(jobId: string): Promise<void> {
                 quarter: null,
                 ...dataPayload,
                 createdBy: 'ai-aggregation',
+                userId: userId || null,
               },
             });
           }
@@ -149,17 +162,24 @@ async function processMetric(
   jobId: string,
   job: any,
   metric: any,
-  year: number
+  year: number,
+  userId?: string
 ): Promise<MetricResult> {
   try {
-    // Check if we already have good data
+    // Check if we already have good data for this user
+    const existingWhere: any = {
+      countryId: job.countryId,
+      metricId: metric.id,
+      year,
+      quarter: null,
+    };
+    
+    if (userId) {
+      existingWhere.userId = userId;
+    }
+    
     const existing = await prisma.countryMetricData.findFirst({
-      where: {
-        countryId: job.countryId,
-        metricId: metric.id,
-        year,
-        quarter: null,
-      },
+      where: existingWhere,
     });
 
     if (existing && existing.sourceType !== 'NEWS_DERIVED') {
@@ -173,7 +193,8 @@ async function processMetric(
       job.country.name,
       job.country.iso2,
       metric,
-      year
+      year,
+      userId
     );
 
     return { metric, existing, result };
@@ -192,7 +213,8 @@ async function searchForMetric(
   countryName: string,
   countryCode: string,
   metric: any,
-  year: number
+  year: number,
+  userId?: string
 ): Promise<MetricSearchResult> {
   
   const prompt = `Search the web and tell me: What is ${countryName}'s ${metric.name} for ${year}?
@@ -209,29 +231,40 @@ NOTE: [one sentence about the source or any caveats]
 
 If you absolutely cannot find any data, reply with: NOT_FOUND`;
 
+  const params = {
+    model: 'claude-sonnet-4-5' as const,
+    max_tokens: 500,
+    messages: [{ role: 'user' as const, content: prompt }],
+    tools: [
+      {
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: 3,
+      } as any
+    ],
+  };
+
   try {
     console.log(`[Aggregation] Calling Claude for ${metric.code}...`);
     
-    const response = await claude.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 500,
-      messages: [{ role: 'user', content: prompt }],
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 3,
-        } as any
-      ],
-    });
-
-    console.log(`[Aggregation] ${metric.code} - stop_reason: ${response.stop_reason}`);
-    
-    // Extract text from response
     let fullText = '';
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        fullText += block.text + '\n';
+    
+    // Use billed call if user is authenticated
+    if (userId) {
+      const result = await billedClaudeCall(userId, 'aggregation', params, 300);
+      
+      for (const block of result.response.content) {
+        if (block.type === 'text') {
+          fullText += block.text + '\n';
+        }
+      }
+    } else {
+      const response = await claude.messages.create(params);
+      
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          fullText += block.text + '\n';
+        }
       }
     }
     

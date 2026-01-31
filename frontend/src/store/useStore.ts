@@ -14,6 +14,12 @@ export type QualitativeTag = {
   value: number;
   note: string | null;
   createdAt: string;
+  user?: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
 };
 
 export type CountryMetrics = {
@@ -41,15 +47,35 @@ export type Article = {
   source: string | null;
   publishDate: string | null;
   summary: string | null;
+  keyNotes?: string | null;
   countryLinks: Array<{
     country: Country;
   }>;
+  user?: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
 };
 
 export type Note = {
   id: string;
   content: string;
   updatedAt: string;
+  user?: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+};
+
+export type NetworkUser = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
 };
 
 export type ContextData = {
@@ -63,6 +89,8 @@ export type ContextData = {
   aggregatedMetrics?: any;
 };
 
+export type ViewMode = 'my-analysis' | 'network';
+
 type Store = {
   // Data
   countries: Country[];
@@ -71,6 +99,18 @@ type Store = {
   contextData: ContextData | null;
   loading: boolean;
   colorDimension: 'economic' | 'social' | 'political' | 'ideological';
+  
+  // Network/Social
+  viewMode: ViewMode;
+  selectedNetworkUserId: string | null;
+  networkUsers: NetworkUser[];
+  networkUsersLoading: boolean;
+  
+  // Per-country user overrides (countryId -> userId, null means "my data")
+  countryUserOverrides: Record<string, string | null>;
+  
+  // User credits
+  creditBalance: number;
 
   // Actions
   fetchCountries: () => Promise<void>;
@@ -79,6 +119,20 @@ type Store = {
   clearSelection: () => void;
   setColorDimension: (dimension: 'economic' | 'social' | 'political' | 'ideological') => void;
   refreshContext: () => Promise<void>;
+  
+  // Network actions
+  setViewMode: (mode: ViewMode) => void;
+  setSelectedNetworkUserId: (userId: string | null) => void;
+  setNetworkUsers: (users: NetworkUser[]) => void;
+  setNetworkUsersLoading: (loading: boolean) => void;
+  
+  // Per-country override actions
+  setCountryUserOverride: (countryId: string, userId: string | null) => void;
+  clearCountryUserOverride: (countryId: string) => void;
+  getEffectiveUserIdForCountry: (countryId: string) => string | null;
+  
+  // Credit actions
+  setCreditBalance: (balance: number) => void;
 };
 
 export const useStore = create<Store>((set, get) => ({
@@ -89,6 +143,18 @@ export const useStore = create<Store>((set, get) => ({
   contextData: null,
   loading: false,
   colorDimension: 'economic',
+  
+  // Network state
+  viewMode: 'my-analysis',
+  selectedNetworkUserId: null,
+  networkUsers: [],
+  networkUsersLoading: true, // Start as loading until data is fetched
+  
+  // Per-country user overrides
+  countryUserOverrides: {},
+  
+  // Credits
+  creditBalance: 0,
 
   // Actions
   fetchCountries: async () => {
@@ -141,5 +207,54 @@ export const useStore = create<Store>((set, get) => ({
     } else if (selectedRegionId) {
       await get().selectRegion(selectedRegionId);
     }
+  },
+  
+  // Network actions
+  setViewMode: (mode) => {
+    set({ viewMode: mode });
+  },
+  
+  setSelectedNetworkUserId: (userId) => {
+    set({ selectedNetworkUserId: userId });
+  },
+  
+  setNetworkUsers: (users) => {
+    set({ networkUsers: users });
+  },
+  
+  setNetworkUsersLoading: (loading) => {
+    set({ networkUsersLoading: loading });
+  },
+  
+  // Per-country override actions
+  setCountryUserOverride: (countryId, userId) => {
+    set((state) => ({
+      countryUserOverrides: {
+        ...state.countryUserOverrides,
+        [countryId]: userId,
+      },
+    }));
+  },
+  
+  clearCountryUserOverride: (countryId) => {
+    set((state) => {
+      const { [countryId]: _, ...rest } = state.countryUserOverrides;
+      return { countryUserOverrides: rest };
+    });
+  },
+  
+  getEffectiveUserIdForCountry: (countryId) => {
+    const state = get();
+    // Check if there's a per-country override first
+    if (countryId in state.countryUserOverrides) {
+      return state.countryUserOverrides[countryId];
+    }
+    // Otherwise use global view mode
+    return state.viewMode === 'network' ? state.selectedNetworkUserId : null;
+  },
+  
+  // Credit actions
+  setCreditBalance: (balance) => {
+    set({ creditBalance: balance });
   },
 }));

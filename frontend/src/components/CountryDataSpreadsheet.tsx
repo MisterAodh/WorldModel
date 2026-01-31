@@ -28,20 +28,21 @@ type SpreadsheetData = {
   dataPointCount: number;
 };
 
+// Bloomberg-style category colors (dark theme)
 const CATEGORY_COLORS: Record<string, string> = {
-  ECONOMIC_CORE: 'bg-blue-50 border-blue-200',
-  ECONOMIC_MARKET: 'bg-blue-100 border-blue-300',
-  LABOR_INCOME: 'bg-green-50 border-green-200',
-  COST_OF_LIVING: 'bg-green-100 border-green-300',
-  INDUSTRY: 'bg-yellow-50 border-yellow-200',
-  DEMOGRAPHICS: 'bg-purple-50 border-purple-200',
-  HEALTH_WELLBEING: 'bg-red-50 border-red-200',
-  EDUCATION: 'bg-orange-50 border-orange-200',
-  POLITICAL_STRUCTURE: 'bg-gray-50 border-gray-200',
-  POLITICAL_SENTIMENT: 'bg-gray-100 border-gray-300',
-  SOCIAL_SENTIMENT: 'bg-pink-50 border-pink-200',
-  SECURITY: 'bg-red-100 border-red-300',
-  INFRASTRUCTURE: 'bg-teal-50 border-teal-200',
+  ECONOMIC_CORE: 'border-orange-500/50',
+  ECONOMIC_MARKET: 'border-orange-500/40',
+  LABOR_INCOME: 'border-green-500/50',
+  COST_OF_LIVING: 'border-green-500/40',
+  INDUSTRY: 'border-yellow-500/50',
+  DEMOGRAPHICS: 'border-purple-500/50',
+  HEALTH_WELLBEING: 'border-red-500/50',
+  EDUCATION: 'border-blue-500/50',
+  POLITICAL_STRUCTURE: 'border-gray-500/50',
+  POLITICAL_SENTIMENT: 'border-gray-500/40',
+  SOCIAL_SENTIMENT: 'border-pink-500/50',
+  SECURITY: 'border-red-500/40',
+  INFRASTRUCTURE: 'border-teal-500/50',
 };
 
 type Props = {
@@ -123,14 +124,14 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
   const getSourceBadge = (value: MetricValue | null) => {
     if (!value) return null;
     const colors: Record<string, string> = {
-      OFFICIAL: 'bg-green-100 text-green-800 border-green-300',
-      AGGREGATOR: 'bg-blue-100 text-blue-800 border-blue-300',
-      NEWS_DERIVED: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      INTERPOLATED: 'bg-orange-100 text-orange-800 border-orange-300',
-      MANUAL: 'bg-purple-100 text-purple-800 border-purple-300',
+      OFFICIAL: 'bg-green-500/20 text-green-400 border-green-500/50',
+      AGGREGATOR: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+      NEWS_DERIVED: 'bg-orange-500/20 text-orange-400 border-orange-500/50',
+      INTERPOLATED: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+      MANUAL: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
     };
     return (
-      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${colors[value.sourceType] || 'bg-gray-100 text-gray-700'}`}>
+      <span className={`text-[10px] font-semibold px-1.5 py-0.5 border ${colors[value.sourceType] || 'bg-gray-500/20 text-gray-400'}`}>
         {value.sourceType.slice(0, 3)}
         {value.confidenceScore && <span className="ml-1">{value.confidenceScore}/10</span>}
       </span>
@@ -139,48 +140,50 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="flex items-center justify-center h-64 bg-black">
+        <div className="animate-spin h-8 w-8 border-2 border-orange-500 border-t-transparent" />
       </div>
     );
   }
 
   if (!data) {
-    return <div className="text-sm text-muted-foreground p-4">No data available.</div>;
+    return <div className="text-sm text-gray-400 p-4 bg-black">No data available.</div>;
   }
 
   const filledCount = Object.values(data.metrics).filter(v => v !== null).length;
   const totalCount = data.columns.length;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-black">
       {/* Header with year selector and stats */}
-      <div className="flex items-center justify-between p-3 border-b bg-background">
+      <div className="flex items-center justify-between p-3 border-b border-orange-500/30">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-600" />
+            <Calendar className="w-4 h-4 text-orange-500" />
             <select
               value={year}
               onChange={(e) => onYearChange?.(parseInt(e.target.value))}
-              className="px-3 py-1.5 border rounded-md text-sm font-semibold bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="px-3 py-1.5 border border-orange-500 text-sm font-semibold bg-black text-orange-500 focus:outline-none uppercase tracking-wide"
             >
               {YEAR_OPTIONS.map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
-          <span className="text-sm text-gray-600">
-            <span className="font-semibold text-gray-900">{filledCount}</span> / {totalCount} metrics populated
+          <span className="text-sm text-gray-400">
+            <span className="font-semibold text-orange-500">{filledCount}</span> / {totalCount} metrics
           </span>
         </div>
       </div>
 
       {/* Category filter */}
-      <div className="flex gap-2 p-3 overflow-x-auto border-b bg-background">
+      <div className="flex gap-2 p-3 overflow-x-auto border-b border-orange-500/30">
         <button
           onClick={() => setSelectedCategory(null)}
-          className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-            selectedCategory === null ? 'bg-primary text-primary-foreground' : 'bg-secondary text-gray-700 hover:bg-secondary/80'
+          className={`px-3 py-1 text-xs font-medium whitespace-nowrap uppercase tracking-wide transition-colors border ${
+            selectedCategory === null 
+              ? 'bg-orange-500 text-black border-orange-500' 
+              : 'bg-transparent text-white border-orange-500/50 hover:border-orange-500'
           }`}
         >
           All ({totalCount})
@@ -192,8 +195,10 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === cat ? 'bg-primary text-primary-foreground' : `${CATEGORY_COLORS[cat]?.split(' ')[0] || 'bg-secondary'} text-gray-700`
+              className={`px-3 py-1 text-xs font-medium whitespace-nowrap uppercase tracking-wide transition-colors border ${
+                selectedCategory === cat 
+                  ? 'bg-orange-500 text-black border-orange-500' 
+                  : 'bg-transparent text-gray-400 border-orange-500/30 hover:border-orange-500 hover:text-white'
               }`}
             >
               {cat.replace(/_/g, ' ')} ({filled}/{count})
@@ -203,15 +208,15 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 p-2 text-xs border-b bg-secondary/30 text-gray-700">
+      <div className="flex gap-4 p-2 text-xs border-b border-orange-500/30 text-gray-400">
         <span className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded border bg-green-100 text-green-800 border-green-300 text-[10px] font-medium">OFF</span> Official
+          <span className="px-1.5 py-0.5 border bg-green-500/20 text-green-400 border-green-500/50 text-[10px] font-medium">OFF</span> Official
         </span>
         <span className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded border bg-blue-100 text-blue-800 border-blue-300 text-[10px] font-medium">AGG</span> Aggregator
+          <span className="px-1.5 py-0.5 border bg-blue-500/20 text-blue-400 border-blue-500/50 text-[10px] font-medium">AGG</span> Aggregator
         </span>
         <span className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded border bg-yellow-100 text-yellow-800 border-yellow-300 text-[10px] font-medium">NEW</span> AI Estimated
+          <span className="px-1.5 py-0.5 border bg-orange-500/20 text-orange-400 border-orange-500/50 text-[10px] font-medium">NEW</span> AI
         </span>
       </div>
 
@@ -219,11 +224,11 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
       <div className="flex-1 overflow-auto p-3">
         <div className="space-y-4">
           {filteredCategories.map((category) => (
-            <div key={category} className={`rounded-lg border overflow-hidden ${CATEGORY_COLORS[category] || ''}`}>
-              <div className="px-3 py-2 font-semibold text-sm text-gray-800 border-b bg-white/50">
+            <div key={category} className={`border overflow-hidden ${CATEGORY_COLORS[category] || 'border-orange-500/30'}`}>
+              <div className="px-3 py-2 font-semibold text-sm text-orange-500 border-b border-orange-500/30 bg-orange-500/5 uppercase tracking-wide">
                 {category.replace(/_/g, ' ')}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-white/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-orange-500/10">
                 {groupedMetrics[category]?.map((metric) => {
                   const value = data.metrics[metric.code];
                   const isHovered = hoveredMetric === metric.code;
@@ -231,12 +236,12 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
                   return (
                     <div
                       key={metric.id}
-                      className={`p-3 bg-white relative transition-shadow ${value ? '' : 'opacity-60'} ${isHovered ? 'shadow-lg z-10' : ''}`}
+                      className={`p-3 bg-black relative transition-all ${value ? '' : 'opacity-50'} ${isHovered ? 'bg-orange-500/10' : ''}`}
                       onMouseEnter={() => setHoveredMetric(metric.code)}
                       onMouseLeave={() => setHoveredMetric(null)}
                     >
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <div className="text-xs text-gray-600 truncate flex-1 font-medium" title={metric.name}>
+                        <div className="text-xs text-gray-400 truncate flex-1 font-medium" title={metric.name}>
                           {metric.name}
                         </div>
                         {value?.sourceUrl && (
@@ -244,7 +249,7 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
                             href={value.sourceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-primary shrink-0"
+                            className="text-orange-500/50 hover:text-orange-500 shrink-0"
                           >
                             <ExternalLink className="w-3 h-3" />
                           </a>
@@ -252,7 +257,7 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
                       </div>
                       
                       <div className="flex items-center justify-between gap-2">
-                        <div className={`text-lg font-bold ${value ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <div className={`text-lg font-bold ${value ? 'text-white' : 'text-gray-600'}`}>
                           {formatValue(value, metric)}
                         </div>
                         {getSourceBadge(value)}
@@ -264,12 +269,12 @@ export function CountryDataSpreadsheet({ countryId, year, onYearChange, refreshK
                       
                       {/* Tooltip on hover */}
                       {isHovered && value?.aiReasoning && (
-                        <div className="absolute left-0 right-0 top-full mt-1 p-2 bg-white border rounded-lg shadow-lg z-20 text-xs">
+                        <div className="absolute left-0 right-0 top-full mt-1 p-2 bg-black border border-orange-500 shadow-lg z-20 text-xs">
                           <div className="flex items-start gap-1">
-                            <Info className="w-3 h-3 shrink-0 mt-0.5 text-gray-400" />
+                            <Info className="w-3 h-3 shrink-0 mt-0.5 text-orange-500" />
                             <div>
-                              <div className="font-medium text-gray-800 mb-1">Source: {value.sourceName || value.sourceType}</div>
-                              <div className="text-gray-600">{value.aiReasoning}</div>
+                              <div className="font-medium text-orange-500 mb-1">Source: {value.sourceName || value.sourceType}</div>
+                              <div className="text-gray-400">{value.aiReasoning}</div>
                             </div>
                           </div>
                         </div>

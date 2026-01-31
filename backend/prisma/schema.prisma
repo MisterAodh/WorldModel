@@ -9,6 +9,120 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// USER & AUTH MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  clerkId       String    @unique
+  username      String    @unique
+  displayName   String?
+  bio           String?   @db.Text
+  avatarUrl     String?
+  isPublic      Boolean   @default(true)
+  
+  // Credits (in cents, $5.00 = 500 cents)
+  creditBalance Int       @default(500)
+  
+  // Relations - Social
+  followers     Follow[]  @relation("Following")
+  following     Follow[]  @relation("Followers")
+  sentMessages  Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  
+  // Relations - Billing
+  tokenUsage    TokenUsage[]
+  purchases     CreditPurchase[]
+  
+  // Relations - Owned Data
+  tags          QualitativeTag[]
+  articles      Article[]
+  notes         Note[]
+  metricData    CountryMetricData[]
+  aggregationJobs DataAggregationJob[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([clerkId])
+  @@index([username])
+  @@map("users")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  
+  follower    User     @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  content     String   @db.Text
+  articleId   String?
+  isRead      Boolean  @default(false)
+  
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  article     Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([senderId, receiverId])
+  @@map("messages")
+}
+
+model TokenUsage {
+  id            String   @id @default(cuid())
+  userId        String
+  inputTokens   Int
+  outputTokens  Int
+  costCents     Int      // Actual cost + 20% markup, in cents
+  endpoint      String   // e.g., "chat", "aggregation", "score-generation"
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@map("token_usage")
+}
+
+model CreditPurchase {
+  id              String   @id @default(cuid())
+  userId          String
+  amountCents     Int      // e.g., 1000 = $10
+  stripeSessionId String   @unique
+  status          String   @default("pending") // pending, completed, failed
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([userId])
+  @@index([stripeSessionId])
+  @@map("credit_purchases")
+}
+
+// ============================================
+// GEOGRAPHY MODELS
+// ============================================
+
 model Country {
   id                   String                 @id @default(cuid())
   iso2                 String                 @unique
@@ -66,6 +180,10 @@ model RegionMembership {
   @@map("region_memberships")
 }
 
+// ============================================
+// CONTENT MODELS
+// ============================================
+
 model Article {
   id                   String                 @id @default(cuid())
   url                  String                 @unique
@@ -75,13 +193,20 @@ model Article {
   summary              String?                @db.Text
   keyNotes             String?                @db.Text
   rawMetadata          Json?                  // Parsed content, HTML, etc.
+  
+  // User ownership
+  userId               String?
+  user                 User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   
   // Relations
   countryLinks         ArticleCountryLink[]
+  messages             Message[]
   
   @@index([publishDate])
+  @@index([userId])
   @@map("articles")
 }
 
@@ -121,10 +246,16 @@ model QualitativeTag {
   value                Int                    // -1 = negative, 0 = neutral, 1 = positive
   source               String                 @default("manual") // manual, ai_suggested, auto_from_rules
   note                 String?                @db.Text
+  
+  // User ownership
+  userId               String?
+  user                 User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
   createdAt            DateTime               @default(now())
   
   @@index([scopeType, scopeId, category])
   @@index([createdAt])
+  @@index([userId])
   @@map("qualitative_tags")
 }
 
@@ -173,10 +304,16 @@ model Note {
   scopeType            ScopeType
   scopeId              String
   content              String                 @db.Text
+  
+  // User ownership
+  userId               String?
+  user                 User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   
   @@index([scopeType, scopeId])
+  @@index([userId])
   @@map("notes")
 }
 
@@ -201,6 +338,10 @@ model AISuggestion {
   @@index([status])
   @@map("ai_suggestions")
 }
+
+// ============================================
+// DEEP DATA AGGREGATION MODELS
+// ============================================
 
 // Enum for data source type
 enum DataSourceType {
@@ -266,6 +407,10 @@ model CountryMetricData {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   createdBy       String?
+  
+  // User ownership
+  userId          String?
+  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   country         Country            @relation(fields: [countryId], references: [id])
   metric          MetricDefinition   @relation(fields: [metricId], references: [id])
@@ -273,6 +418,7 @@ model CountryMetricData {
   @@unique([countryId, metricId, year, quarter])
   @@index([countryId, year])
   @@index([metricId])
+  @@index([userId])
   @@map("country_metric_data")
 }
 
@@ -290,10 +436,15 @@ model DataAggregationJob {
   startedAt        DateTime?
   completedAt      DateTime?
   createdAt        DateTime  @default(now())
+  
+  // User ownership
+  userId           String?
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   country          Country   @relation(fields: [countryId], references: [id])
 
   @@index([countryId])
   @@index([status])
+  @@index([userId])
   @@map("data_aggregation_jobs")
 }

@@ -1,30 +1,65 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { claude } from '../lib/claude.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { billedClaudeCall } from '../lib/billing.js';
 
 export const tagRoutes = Router();
 
-// Get tags for a scope
-tagRoutes.get('/:scopeType/:scopeId', async (req, res) => {
+// Get tags for a scope (optionally filtered by user)
+tagRoutes.get('/:scopeType/:scopeId', optionalAuth, async (req, res) => {
   try {
     const { scopeType, scopeId } = req.params;
+    const { userId: filterUserId } = req.query;
+
+    // Build where clause
+    const where: any = {
+      scopeType: scopeType.toUpperCase() as any,
+      scopeId,
+    };
+
+    // If filterUserId is specified, filter by that user
+    // If current user is logged in and no filter specified, show their own tags
+    // IMPORTANT: Always filter by user - never return orphaned (null userId) data
+    if (filterUserId) {
+      where.userId = filterUserId as string;
+    } else if (req.userId) {
+      where.userId = req.userId;
+    } else {
+      // No user context - return empty results (don't show orphaned data)
+      return res.json({ all: [], latest: [] });
+    }
 
     const tags = await prisma.qualitativeTag.findMany({
-      where: {
-        scopeType: scopeType.toUpperCase() as any,
-        scopeId,
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     // Get latest per category
     const latestTags = await prisma.qualitativeTag.findMany({
-      where: {
-        scopeType: scopeType.toUpperCase() as any,
-        scopeId,
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       distinct: ['category'],
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
 
     res.json({ all: tags, latest: latestTags });
@@ -35,7 +70,7 @@ tagRoutes.get('/:scopeType/:scopeId', async (req, res) => {
 });
 
 // Create new qualitative tag
-tagRoutes.post('/', async (req, res) => {
+tagRoutes.post('/', optionalAuth, async (req, res) => {
   try {
     const { scopeType, scopeId, category, value, source, note } = req.body;
 
@@ -47,6 +82,17 @@ tagRoutes.post('/', async (req, res) => {
         value,
         source: source || 'manual',
         note,
+        userId: req.userId || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
       },
     });
 
@@ -58,9 +104,23 @@ tagRoutes.post('/', async (req, res) => {
 });
 
 // Delete a qualitative tag
-tagRoutes.delete('/:id', async (req, res) => {
+tagRoutes.delete('/:id', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Check if tag exists and belongs to user (if authenticated)
+    const tag = await prisma.qualitativeTag.findUnique({
+      where: { id },
+    });
+
+    if (!tag) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+
+    // If tag has a user and current user is different, deny
+    if (tag.userId && req.userId && tag.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this tag' });
+    }
 
     await prisma.qualitativeTag.delete({
       where: { id },
@@ -74,7 +134,7 @@ tagRoutes.delete('/:id', async (req, res) => {
 });
 
 // Generate AI scores from aggregated data
-tagRoutes.post('/generate-scores/:countryId', async (req, res) => {
+tagRoutes.post('/generate-scores/:countryId', optionalAuth, async (req, res) => {
   try {
     const { countryId } = req.params;
     const { year } = req.body;
@@ -89,16 +149,34 @@ tagRoutes.post('/generate-scores/:countryId', async (req, res) => {
     }
     
     // Get aggregated metric data for this country
-    const metricData = await prisma.countryMetricData.findMany({
-      where: {
-        countryId,
-        year: year || new Date().getFullYear(),
-        quarter: null,
-      },
+    // If user is logged in, prefer their data, otherwise use any available
+    const where: any = {
+      countryId,
+      year: year || new Date().getFullYear(),
+      quarter: null,
+    };
+    
+    if (req.userId) {
+      where.userId = req.userId;
+    }
+
+    let metricData = await prisma.countryMetricData.findMany({
+      where,
       include: {
         metric: true,
       },
     });
+
+    // If no user-specific data, try to get any data
+    if (metricData.length === 0 && req.userId) {
+      delete where.userId;
+      metricData = await prisma.countryMetricData.findMany({
+        where,
+        include: {
+          metric: true,
+        },
+      });
+    }
     
     if (metricData.length === 0) {
       return res.status(400).json({ error: 'No aggregated data found for this country. Run aggregation first.' });
@@ -140,17 +218,37 @@ Respond ONLY with JSON in this exact format:
   }
 }`;
 
-    const response = await claude.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 500,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    
-    // Extract text response
     let text = '';
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        text += block.text;
+    
+    // Use billed call if user is authenticated
+    if (req.userId) {
+      const result = await billedClaudeCall(
+        req.userId,
+        'score-generation',
+        {
+          model: 'claude-sonnet-4-5',
+          max_tokens: 500,
+          messages: [{ role: 'user', content: prompt }],
+        }
+      );
+      
+      for (const block of result.response.content) {
+        if (block.type === 'text') {
+          text += block.text;
+        }
+      }
+    } else {
+      // Non-authenticated call (legacy support)
+      const response = await claude.messages.create({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }],
+      });
+      
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          text += block.text;
+        }
       }
     }
     
@@ -168,8 +266,11 @@ Respond ONLY with JSON in this exact format:
       dataPointsUsed: metricData.length,
       scores,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating scores:', error);
+    if (error.message === 'Insufficient credits') {
+      return res.status(402).json({ error: 'Insufficient credits' });
+    }
     res.status(500).json({ error: 'Failed to generate scores' });
   }
 });
