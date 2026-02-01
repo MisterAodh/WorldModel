@@ -41,13 +41,13 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
-      {/* Background Video - streams progressively */}
+      {/* Background Video */}
       <video
         autoPlay
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
         className="absolute inset-0 w-full h-full object-cover opacity-80 z-0"
       >
         <source src="/background_video.mp4" type="video/mp4" />
