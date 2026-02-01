@@ -1,8 +1,7 @@
-import { prisma } from './lib/prisma.js';
 import { metricDefinitions } from '../prisma/seeds/metricDefinitions.js';
 
 // ISO 3166-1 country data (all 193 UN member states)
-const countries = [
+export const countries = [
   { iso2: 'AF', iso3: 'AFG', name: 'Afghanistan' },
   { iso2: 'AL', iso3: 'ALB', name: 'Albania' },
   { iso2: 'DZ', iso3: 'DZA', name: 'Algeria' },
@@ -44,7 +43,7 @@ const countries = [
   { iso2: 'CG', iso3: 'COG', name: 'Congo' },
   { iso2: 'CD', iso3: 'COD', name: 'Congo (Democratic Republic)' },
   { iso2: 'CR', iso3: 'CRI', name: 'Costa Rica' },
-  { iso2: 'CI', iso3: 'CIV', name: 'Côte d\'Ivoire' },
+  { iso2: 'CI', iso3: 'CIV', name: "Côte d'Ivoire" },
   { iso2: 'HR', iso3: 'HRV', name: 'Croatia' },
   { iso2: 'CU', iso3: 'CUB', name: 'Cuba' },
   { iso2: 'CY', iso3: 'CYP', name: 'Cyprus' },
@@ -136,7 +135,6 @@ const countries = [
   { iso2: 'OM', iso3: 'OMN', name: 'Oman' },
   { iso2: 'PK', iso3: 'PAK', name: 'Pakistan' },
   { iso2: 'PW', iso3: 'PLW', name: 'Palau' },
-  { iso2: 'PS', iso3: 'PSE', name: 'Palestine' },
   { iso2: 'PA', iso3: 'PAN', name: 'Panama' },
   { iso2: 'PG', iso3: 'PNG', name: 'Papua New Guinea' },
   { iso2: 'PY', iso3: 'PRY', name: 'Paraguay' },
@@ -153,7 +151,7 @@ const countries = [
   { iso2: 'VC', iso3: 'VCT', name: 'Saint Vincent and the Grenadines' },
   { iso2: 'WS', iso3: 'WSM', name: 'Samoa' },
   { iso2: 'SM', iso3: 'SMR', name: 'San Marino' },
-  { iso2: 'ST', iso3: 'STP', name: 'São Tomé and Príncipe' },
+  { iso2: 'ST', iso3: 'STP', name: 'Sao Tome and Principe' },
   { iso2: 'SA', iso3: 'SAU', name: 'Saudi Arabia' },
   { iso2: 'SN', iso3: 'SEN', name: 'Senegal' },
   { iso2: 'RS', iso3: 'SRB', name: 'Serbia' },
@@ -173,6 +171,7 @@ const countries = [
   { iso2: 'SE', iso3: 'SWE', name: 'Sweden' },
   { iso2: 'CH', iso3: 'CHE', name: 'Switzerland' },
   { iso2: 'SY', iso3: 'SYR', name: 'Syria' },
+  { iso2: 'TW', iso3: 'TWN', name: 'Taiwan' },
   { iso2: 'TJ', iso3: 'TJK', name: 'Tajikistan' },
   { iso2: 'TZ', iso3: 'TZA', name: 'Tanzania' },
   { iso2: 'TH', iso3: 'THA', name: 'Thailand' },
@@ -200,57 +199,4 @@ const countries = [
   { iso2: 'ZW', iso3: 'ZWE', name: 'Zimbabwe' },
 ];
 
-export async function seedDatabase() {
-  console.log('Seeding database...');
-
-  // Clear existing data (optional, be careful in production!)
-  await prisma.aISuggestion.deleteMany({});
-  await prisma.note.deleteMany({});
-  await prisma.industryShare.deleteMany({});
-  await prisma.countryMetricData.deleteMany({});
-  await prisma.dataAggregationJob.deleteMany({});
-  await prisma.countryMetrics.deleteMany({});
-  await prisma.qualitativeTag.deleteMany({});
-  await prisma.articleCountryLink.deleteMany({});
-  await prisma.article.deleteMany({});
-  await prisma.regionMembership.deleteMany({});
-  await prisma.region.deleteMany({});
-  await prisma.country.deleteMany({});
-  await prisma.metricDefinition.deleteMany({});
-
-  // Seed countries
-  console.log('Seeding countries...');
-  for (const country of countries) {
-    await prisma.country.create({
-      data: country,
-    });
-  }
-
-  console.log(`✅ Seeded ${countries.length} countries`);
-
-  console.log('Seeding metric definitions...');
-  for (const definition of metricDefinitions) {
-    await prisma.metricDefinition.upsert({
-      where: { code: definition.code },
-      update: definition,
-      create: definition,
-    });
-  }
-  console.log(`✅ Seeded ${metricDefinitions.length} metric definitions`);
-  console.log('Database seeding complete!');
-}
-
-export { countries, metricDefinitions };
-
-// Only run when executed directly (e.g., `tsx src/seed.ts`)
-if (process.argv[1]?.includes('seed')) {
-  seedDatabase()
-    .catch((e) => {
-      console.error('Error seeding database:', e);
-      process.exit(1);
-    })
-    .finally(async () => {
-      await prisma.$disconnect();
-    });
-}
-
+export { metricDefinitions };

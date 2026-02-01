@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { prisma } from './lib/prisma.js';
+import { countries, metricDefinitions } from './seed.js';
 
 // Routes
 import { countryRoutes } from './routes/countries.js';
@@ -142,22 +144,58 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // START SERVER
 // ============================================
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📡 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-  
-  // Check for required environment variables
-  const requiredVars = ['DATABASE_URL', 'CLERK_SECRET_KEY'];
-  const missing = requiredVars.filter(v => !process.env[v]);
-  if (missing.length > 0) {
-    console.warn(`⚠️  Missing environment variables: ${missing.join(', ')}`);
+async function seedIfEmpty() {
+  try {
+    const countryCount = await prisma.country.count();
+    if (countryCount === 0) {
+      console.log('[seed] Countries empty, seeding...');
+      await prisma.country.createMany({ data: countries, skipDuplicates: true });
+      console.log(`[seed] Seeded ${countries.length} countries`);
+    }
+
+    const metricCount = await (prisma as any).metricDefinition.count();
+    if (metricCount === 0) {
+      console.log('[seed] Metric definitions empty, seeding...');
+      await (prisma as any).metricDefinition.createMany({
+        data: metricDefinitions as any,
+        skipDuplicates: true,
+      });
+      console.log(`[seed] Seeded ${metricDefinitions.length} metric definitions`);
+    }
+  } catch (error: any) {
+    if (error?.code === 'P2021') {
+      console.warn('[seed] Tables missing. Run prisma db push or migrations.');
+    } else {
+      console.error('[seed] Seed check failed:', error);
+    }
   }
-  
-  // Optional warnings
-  if (!process.env.STRIPE_SECRET_KEY) {
-    console.warn('⚠️  STRIPE_SECRET_KEY not set - billing will not work');
-  }
-  if (!process.env.CLAUDE_API_KEY) {
-    console.warn('⚠️  CLAUDE_API_KEY not set - AI features will not work');
-  }
+}
+
+async function startServer() {
+  await seedIfEmpty();
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📡 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+    
+    // Check for required environment variables
+    const requiredVars = ['DATABASE_URL', 'CLERK_SECRET_KEY'];
+    const missing = requiredVars.filter(v => !process.env[v]);
+    if (missing.length > 0) {
+      console.warn(`⚠️  Missing environment variables: ${missing.join(', ')}`);
+    }
+    
+    // Optional warnings
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.warn('⚠️  STRIPE_SECRET_KEY not set - billing will not work');
+    }
+    if (!process.env.CLAUDE_API_KEY) {
+      console.warn('⚠️  CLAUDE_API_KEY not set - AI features will not work');
+    }
+  });
+}
+
+startServer().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
