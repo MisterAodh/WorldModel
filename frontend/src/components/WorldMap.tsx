@@ -72,12 +72,11 @@ export function WorldMap() {
     const fetchAllTags = async () => {
       const colors: Record<string, string> = {};
       const overrideCountries = new Set<string>();
-      
-      for (const country of countries) {
-        try {
-          // Check for per-country override first, then fall back to global view mode
+
+      const results = await Promise.allSettled(
+        countries.map(async (country) => {
           let userIdToFetch: string | undefined;
-          
+
           if (country.id in countryUserOverrides) {
             const overrideUserId = countryUserOverrides[country.id];
             if (overrideUserId) {
@@ -87,27 +86,37 @@ export function WorldMap() {
           } else if (viewMode === 'network' && selectedNetworkUserId) {
             userIdToFetch = selectedNetworkUserId;
           }
-          
+
           const response = await getTags('country', country.id, userIdToFetch);
-          const allTags = response.data.all || [];
-          
-          // Filter tags for the selected dimension and calculate rolling score
-          const dimensionTags = allTags.filter(
-            (tag: any) => tag.category.toLowerCase() === colorDimension
-          );
-          
-          if (dimensionTags.length > 0) {
-            const totalScore = dimensionTags.reduce((sum: number, tag: any) => sum + tag.value, 0);
-            // Use color interpolation for heat map
-            colors[country.iso3] = interpolateColor(totalScore, colorDimension);
-          } else {
-            colors[country.iso3] = '#374151'; // gray (no data)
-          }
-        } catch (error) {
+          return { country, tags: response.data.all || [] };
+        })
+      );
+
+      for (const result of results) {
+        if (result.status !== 'fulfilled') {
+          continue;
+        }
+
+        const { country, tags } = result.value;
+        const dimensionTags = tags.filter(
+          (tag: any) => tag.category.toLowerCase() === colorDimension
+        );
+
+        if (dimensionTags.length > 0) {
+          const totalScore = dimensionTags.reduce((sum: number, tag: any) => sum + tag.value, 0);
+          colors[country.iso3] = interpolateColor(totalScore, colorDimension);
+        } else {
           colors[country.iso3] = '#374151';
         }
       }
-      
+
+      // Ensure overrides are registered even if tag requests fail
+      for (const country of countries) {
+        if (country.id in countryUserOverrides && countryUserOverrides[country.id]) {
+          overrideCountries.add(country.iso3);
+        }
+      }
+
       setCountryColors(colors);
       setCountriesWithOverrides(overrideCountries);
     };
@@ -115,7 +124,7 @@ export function WorldMap() {
     if (countries.length > 0) {
       fetchAllTags();
     }
-  }, [countries, colorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides]);
+  }, [countries, colorDimension, viewMode, selectedNetworkUserId, countryUserOverrides]);
 
   const onClick = useCallback((event: MapLayerMouseEvent) => {
     console.log('[WorldMap] click event', {
