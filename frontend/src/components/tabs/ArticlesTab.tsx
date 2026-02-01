@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { createArticle, getArticles } from '../../lib/api';
+import { createArticle, getArticles, api } from '../../lib/api';
 import { ExternalLink, Plus, Loader2, Edit2, Save, X, Eye } from 'lucide-react';
-import axios from 'axios';
 
 export function ArticlesTab() {
   const { contextData, selectedCountryId, selectedRegionId, refreshContext, countryUserOverrides, networkUsers } = useStore();
@@ -89,10 +88,9 @@ export function ArticlesTab() {
   };
 
   const handleSaveEdit = async (articleId: string) => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     setLoading(true);
     try {
-      await axios.patch(`${apiUrl}/api/articles/${articleId}`, {
+      await api.patch(`/articles/${articleId}`, {
         title: editTitle,
         keyNotes: editKeyNotes,
       });

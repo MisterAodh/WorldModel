@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { createTag, getTags, generateAIScores, getCountryMetricsSpreadsheet } from '../lib/api';
+import { createTag, getTags, generateAIScores, getCountryMetricsSpreadsheet, api } from '../lib/api';
 import { Plus, Minus, TrendingUp, TrendingDown, X, History, Sparkles, Loader2, Eye } from 'lucide-react';
-import axios from 'axios';
 
 const categoryConfig = {
   economic: { displayName: 'Economic Growth', dbCategory: 'ECONOMIC' },
@@ -158,10 +157,9 @@ export function QualitativeTagsEditor() {
   };
 
   const handleDeleteTag = async (tagId: string, category: string) => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     setLoading(category);
     try {
-      await axios.delete(`${apiUrl}/api/tags/${tagId}`);
+      await api.delete(`/tags/${tagId}`);
       await refreshContext();
     } catch (error) {
       console.error('Error deleting tag:', error);

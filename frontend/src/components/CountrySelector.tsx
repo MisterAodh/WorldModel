@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { api } from '../lib/api';
 
 type Country = {
   id: string;
@@ -20,9 +21,8 @@ export function CountrySelector({ onClose }: { onClose: () => void }) {
 
   const fetchCountries = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/countries`);
-      if (!res.ok) throw new Error('Failed to fetch countries');
-      const data = await res.json();
+      const res = await api.get('/countries');
+      const data = res.data;
       setCountries(data);
     } catch (error) {
       console.error('Error fetching countries:', error);
