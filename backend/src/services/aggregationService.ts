@@ -121,7 +121,7 @@ export async function startAggregationJob(jobId: string, userId?: string): Promi
                 countryId: job.countryId,
                 metricId: metric.id,
                 year,
-                quarter: null,
+                quarter: 0,
                 ...dataPayload,
                 createdBy: 'ai-aggregation',
                 userId: userId || null,
@@ -171,7 +171,7 @@ async function processMetric(
       countryId: job.countryId,
       metricId: metric.id,
       year,
-      quarter: null,
+      quarter: 0,
     };
     
     if (userId) {

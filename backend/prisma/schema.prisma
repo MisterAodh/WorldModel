@@ -395,7 +395,9 @@ model CountryMetricData {
   countryId       String
   metricId        String
   year            Int
-  quarter         Int?
+  // 0 = annual datapoint; 1-4 = quarterly datapoint
+  // IMPORTANT: this is non-null so our unique index + upserts actually work in Postgres.
+  quarter         Int                @default(0)
   valueNumeric    Float?
   valueText       String?
   sourceType      DataSourceType
@@ -415,7 +417,8 @@ model CountryMetricData {
   country         Country            @relation(fields: [countryId], references: [id])
   metric          MetricDefinition   @relation(fields: [metricId], references: [id])
 
-  @@unique([countryId, metricId, year, quarter])
+  // IMPORTANT: per-user isolation. Without userId in the unique key, users overwrite each other's data.
+  @@unique([userId, countryId, metricId, year, quarter])
   @@index([countryId, year])
   @@index([metricId])
   @@index([userId])

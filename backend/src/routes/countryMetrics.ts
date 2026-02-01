@@ -1,16 +1,20 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { requireAuth } from '../middleware/auth.js';
 
 export const countryMetricsRoutes = Router();
 
 // GET /api/country-metrics/:countryId
-countryMetricsRoutes.get('/:countryId', async (req, res) => {
+countryMetricsRoutes.get('/:countryId', requireAuth, async (req, res) => {
   try {
     const { countryId } = req.params;
     const { year } = req.query;
 
-    const where: { countryId: string; year?: number } = { countryId };
+    const where: { countryId: string; year?: number; userId: string } = {
+      countryId,
+      userId: req.userId!,
+    };
     if (year) {
       where.year = parseInt(year as string, 10);
     }
@@ -29,7 +33,7 @@ countryMetricsRoutes.get('/:countryId', async (req, res) => {
 });
 
 // GET /api/country-metrics/:countryId/spreadsheet
-countryMetricsRoutes.get('/:countryId/spreadsheet', async (req, res) => {
+countryMetricsRoutes.get('/:countryId/spreadsheet', requireAuth, async (req, res) => {
   try {
     const { countryId } = req.params;
     const { year } = req.query;
@@ -46,7 +50,8 @@ countryMetricsRoutes.get('/:countryId/spreadsheet', async (req, res) => {
       where: {
         countryId,
         year: targetYear,
-        quarter: null, // Only annual data
+        quarter: 0, // Only annual data
+        userId: req.userId!,
       },
       include: { metric: true },
     });
@@ -97,9 +102,10 @@ const createMetricSchema = z.object({
 });
 
 // POST /api/country-metrics
-countryMetricsRoutes.post('/', async (req, res) => {
+countryMetricsRoutes.post('/', requireAuth, async (req, res) => {
   try {
     const validated = createMetricSchema.parse(req.body);
+    const quarter = validated.quarter ?? 0;
 
     const metricDef = await prisma.metricDefinition.findUnique({
       where: { code: validated.metricCode },
@@ -124,18 +130,20 @@ countryMetricsRoutes.post('/', async (req, res) => {
 
     const dataPoint = await prisma.countryMetricData.upsert({
       where: {
-        countryId_metricId_year_quarter: {
+        userId_countryId_metricId_year_quarter: {
+          userId: req.userId!,
           countryId: validated.countryId,
           metricId: metricDef.id,
           year: validated.year,
-          quarter: validated.quarter ?? null,
+          quarter,
         },
       },
       create: {
+        userId: req.userId!,
         countryId: validated.countryId,
         metricId: metricDef.id,
         year: validated.year,
-        quarter: validated.quarter ?? null,
+        quarter,
         valueNumeric: validated.valueNumeric,
         valueText: validated.valueText,
         sourceType: validated.sourceType,
@@ -170,8 +178,21 @@ countryMetricsRoutes.post('/', async (req, res) => {
 });
 
 // DELETE /api/country-metrics/:id
-countryMetricsRoutes.delete('/:id', async (req, res) => {
+countryMetricsRoutes.delete('/:id', requireAuth, async (req, res) => {
   try {
+    const existing = await prisma.countryMetricData.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, userId: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Metric data not found' });
+    }
+
+    if (existing.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this metric data' });
+    }
+
     await prisma.countryMetricData.delete({
       where: { id: req.params.id },
     });

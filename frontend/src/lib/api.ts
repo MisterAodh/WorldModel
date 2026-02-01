@@ -100,6 +100,8 @@ export const getPurchaseHistory = (limit?: number) =>
 
 export const getTags = (scopeType: string, scopeId: string, userId?: string) =>
   api.get(`/tags/${scopeType}/${scopeId}`, { params: { userId } });
+export const getTagsBulk = (data: { scopeType: string; scopeIds: string[]; userId?: string }) =>
+  api.post('/tags/bulk', data);
 export const createTag = (data: {
   scopeType: string;
   scopeId: string;

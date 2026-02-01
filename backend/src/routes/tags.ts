@@ -69,6 +69,57 @@ tagRoutes.get('/:scopeType/:scopeId', optionalAuth, async (req, res) => {
   }
 });
 
+// Bulk tag fetch for many scopes (map coloring, etc.)
+// POST /api/tags/bulk
+// Body: { scopeType: 'country' | 'region', scopeIds: string[], userId?: string }
+// - If userId is omitted, uses the current authenticated user (req.userId)
+// - If no user context exists, returns empty results
+tagRoutes.post('/bulk', optionalAuth, async (req, res) => {
+  try {
+    const { scopeType, scopeIds, userId: filterUserId } = req.body || {};
+
+    if (!scopeType || !Array.isArray(scopeIds)) {
+      return res.status(400).json({ error: 'scopeType and scopeIds are required' });
+    }
+
+    const normalizedScopeType = String(scopeType).toUpperCase();
+    const effectiveUserId = filterUserId || req.userId;
+
+    if (!effectiveUserId) {
+      return res.json({ byScopeId: {} });
+    }
+
+    // Defensive: cap request size
+    const limitedScopeIds = scopeIds.slice(0, 500).map((id: any) => String(id));
+
+    const tags = await prisma.qualitativeTag.findMany({
+      where: {
+        scopeType: normalizedScopeType as any,
+        scopeId: { in: limitedScopeIds },
+        userId: effectiveUserId,
+      },
+      select: {
+        scopeId: true,
+        category: true,
+        value: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const byScopeId: Record<string, Array<{ category: string; value: number }>> = {};
+    for (const t of tags) {
+      if (!byScopeId[t.scopeId]) byScopeId[t.scopeId] = [];
+      byScopeId[t.scopeId].push({ category: t.category, value: t.value });
+    }
+
+    res.json({ byScopeId });
+  } catch (error) {
+    console.error('Error fetching tags (bulk):', error);
+    res.status(500).json({ error: 'Failed to fetch tags (bulk)' });
+  }
+});
+
 // Create new qualitative tag
 tagRoutes.post('/', optionalAuth, async (req, res) => {
   try {
@@ -134,7 +185,7 @@ tagRoutes.delete('/:id', optionalAuth, async (req, res) => {
 });
 
 // Generate AI scores from aggregated data
-tagRoutes.post('/generate-scores/:countryId', optionalAuth, async (req, res) => {
+tagRoutes.post('/generate-scores/:countryId', requireAuth, async (req, res) => {
   try {
     const { countryId } = req.params;
     const { year } = req.body;
@@ -148,35 +199,20 @@ tagRoutes.post('/generate-scores/:countryId', optionalAuth, async (req, res) => 
       return res.status(404).json({ error: 'Country not found' });
     }
     
-    // Get aggregated metric data for this country
-    // If user is logged in, prefer their data, otherwise use any available
+    // Get aggregated metric data for this country (ALWAYS user-scoped)
     const where: any = {
       countryId,
       year: year || new Date().getFullYear(),
-      quarter: null,
+      quarter: 0,
+      userId: req.userId,
     };
-    
-    if (req.userId) {
-      where.userId = req.userId;
-    }
 
-    let metricData = await prisma.countryMetricData.findMany({
+    const metricData = await prisma.countryMetricData.findMany({
       where,
       include: {
         metric: true,
       },
     });
-
-    // If no user-specific data, try to get any data
-    if (metricData.length === 0 && req.userId) {
-      delete where.userId;
-      metricData = await prisma.countryMetricData.findMany({
-        where,
-        include: {
-          metric: true,
-        },
-      });
-    }
     
     if (metricData.length === 0) {
       return res.status(400).json({ error: 'No aggregated data found for this country. Run aggregation first.' });

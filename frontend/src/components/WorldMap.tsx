@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Map, { Source, Layer, MapLayerMouseEvent } from 'react-map-gl';
 import { useStore } from '../store/useStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { getTags } from '../lib/api';
+import { getTagsBulk } from '../lib/api';
 import { ChevronDown } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -73,40 +73,59 @@ export function WorldMap() {
       const colors: Record<string, string> = {};
       const overrideCountries = new Set<string>();
 
-      const results = await Promise.allSettled(
-        countries.map(async (country) => {
-          let userIdToFetch: string | undefined;
+      // Group countries by which user's tags we should use.
+      // This allows us to use the bulk endpoint (1 request per user-group) instead of 190+ requests.
+      const groups = new Map<string, { userId?: string; countries: any[] }>();
 
-          if (country.id in countryUserOverrides) {
-            const overrideUserId = countryUserOverrides[country.id];
-            if (overrideUserId) {
-              userIdToFetch = overrideUserId;
-              overrideCountries.add(country.iso3);
-            }
-          } else if (viewMode === 'network' && selectedNetworkUserId) {
-            userIdToFetch = selectedNetworkUserId;
+      for (const country of countries) {
+        let userIdToFetch: string | undefined;
+
+        if (country.id in countryUserOverrides) {
+          const overrideUserId = countryUserOverrides[country.id];
+          if (overrideUserId) {
+            userIdToFetch = overrideUserId;
+            overrideCountries.add(country.iso3);
           }
+        } else if (viewMode === 'network' && selectedNetworkUserId) {
+          userIdToFetch = selectedNetworkUserId;
+        }
 
-          const response = await getTags('country', country.id, userIdToFetch);
-          return { country, tags: response.data.all || [] };
+        const key = userIdToFetch ?? '__me__';
+        const existing = groups.get(key);
+        if (existing) {
+          existing.countries.push(country);
+        } else {
+          groups.set(key, { userId: userIdToFetch, countries: [country] });
+        }
+      }
+
+      const groupResults = await Promise.allSettled(
+        Array.from(groups.values()).map(async (group) => {
+          const response = await getTagsBulk({
+            scopeType: 'country',
+            scopeIds: group.countries.map((c) => c.id),
+            userId: group.userId,
+          });
+          return { group, byScopeId: response.data.byScopeId || {} };
         })
       );
 
-      for (const result of results) {
-        if (result.status !== 'fulfilled') {
-          continue;
-        }
+      for (const result of groupResults) {
+        if (result.status !== 'fulfilled') continue;
 
-        const { country, tags } = result.value;
-        const dimensionTags = tags.filter(
-          (tag: any) => tag.category.toLowerCase() === colorDimension
-        );
+        const { group, byScopeId } = result.value as any;
+        for (const country of group.countries as any[]) {
+          const tags = (byScopeId[country.id] || []) as Array<{ category: string; value: number }>;
+          const dimensionTags = tags.filter(
+            (tag) => String(tag.category).toLowerCase() === colorDimension
+          );
 
-        if (dimensionTags.length > 0) {
-          const totalScore = dimensionTags.reduce((sum: number, tag: any) => sum + tag.value, 0);
-          colors[country.iso3] = interpolateColor(totalScore, colorDimension);
-        } else {
-          colors[country.iso3] = '#374151';
+          if (dimensionTags.length > 0) {
+            const totalScore = dimensionTags.reduce((sum, tag) => sum + (tag.value || 0), 0);
+            colors[country.iso3] = interpolateColor(totalScore, colorDimension);
+          } else {
+            colors[country.iso3] = '#374151';
+          }
         }
       }
 
