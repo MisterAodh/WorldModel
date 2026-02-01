@@ -42,7 +42,7 @@ export function LandingPage() {
       </video>
 
       {/* Header */}
-      <header className="relative z-10 p-6 border-b border-orange-500/30">
+      <header className="relative z-10 p-6 border-b border-orange-500/30 bg-black">
         <div className="flex items-center gap-3">
           <Globe className="w-6 h-6 text-orange-500" />
           <h1 className="text-xl font-bold text-white uppercase tracking-wide font-mono">Atlascast</h1>
@@ -55,10 +55,10 @@ export function LandingPage() {
         <div className="flex-1 flex items-start justify-start p-12 pt-[10vh] pl-[5vw]">
           <div className="text-left">
             <h2 className="text-4xl font-bold text-white mb-2 uppercase tracking-tight">
-              Do You See?
+                Peer Upon This World!
             </h2>
             <h3 className="text-4xl font-bold text-orange-500 uppercase tracking-tight">
-              Peer Upon This World!
+            Do You See The Future?
             </h3>
           </div>
         </div>
