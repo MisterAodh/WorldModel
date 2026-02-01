@@ -93,7 +93,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
           username,
           displayName: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
           avatarUrl: clerkUser.imageUrl,
-          creditBalance: 500, // $5.00 in cents
+          creditBalance: 100, // $1.00 in cents
         },
         select: {
           id: true,

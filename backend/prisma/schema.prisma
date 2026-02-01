@@ -22,8 +22,8 @@ model User {
   avatarUrl     String?
   isPublic      Boolean   @default(true)
   
-  // Credits (in cents, $5.00 = 500 cents)
-  creditBalance Int       @default(500)
+  // Credits (in cents, $1.00 = 100 cents)
+  creditBalance Int       @default(100)
   
   // Relations - Social
   followers     Follow[]  @relation("Following")

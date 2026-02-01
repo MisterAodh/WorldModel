@@ -52,7 +52,7 @@ export function LandingPage() {
       {/* Main Content */}
       <div className="flex-1 flex relative z-10">
         {/* Left Section - Hero */}
-        <div className="flex-1 flex items-start justify-start p-12 pt-[10vh] pl-[5vw]">
+        <div className="flex-1 min-w-0 flex items-start justify-start p-12 pt-[10vh] pl-[5vw]">
           <div className="text-left">
             <h2 className="text-4xl font-bold text-white mb-2 uppercase tracking-tight">
                 Peer Upon This World!
@@ -64,7 +64,7 @@ export function LandingPage() {
         </div>
 
         {/* Right Section - Auth Panel */}
-        <div className="w-full max-w-md bg-black border-l border-orange-500 flex flex-col">
+        <div className="w-[420px] max-w-none flex-shrink-0 bg-black/95 border-l border-orange-500 flex flex-col">
           {/* Auth Toggle */}
           <div className="flex border-b border-orange-500/30">
             <button
