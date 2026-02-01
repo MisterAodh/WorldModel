@@ -67,29 +67,13 @@ export function LandingPage() {
       <div className="flex-1 flex relative z-10">
         {/* Left Section - Hero */}
         <div className="flex-1 flex items-center justify-center p-12">
-          <div className="max-w-xl">
-            <h2 className="text-5xl font-bold text-white mb-6 uppercase tracking-tight">
-              Geopolitical<br />
-              <span className="text-orange-500">Intelligence</span>
+          <div className="text-center">
+            <h2 className="text-6xl font-bold text-white mb-4 uppercase tracking-tight">
+              Do You See?
             </h2>
-            <p className="text-gray-400 text-lg mb-8">
-              Track, analyze, and share insights on global political and economic trends. 
-              Build your world view with AI-powered research and connect with other analysts.
-            </p>
-            <div className="flex gap-4 text-sm text-gray-500">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500" />
-                <span>AI-Powered Analysis</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500" />
-                <span>Real-time Data</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500" />
-                <span>Social Network</span>
-              </div>
-            </div>
+            <h3 className="text-5xl font-bold text-orange-500 uppercase tracking-tight">
+              Peer Upon This World!
+            </h3>
           </div>
         </div>
 
