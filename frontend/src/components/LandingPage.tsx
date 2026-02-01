@@ -3,15 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Globe } from 'lucide-react';
 
 // Check if auth is enabled
-const isAuthEnabled = !!(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && 
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY !== 'pk_test_placeholder');
+const isAuthEnabled = !!((import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY && 
+  (import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY !== 'pk_test_placeholder');
 
 export function LandingPage() {
   const navigate = useNavigate();
   const [ClerkAuth, setClerkAuth] = useState<any>(null);
   const [authView, setAuthView] = useState<'sign-in' | 'sign-up'>('sign-in');
-  const [isSignedIn, setIsSignedIn] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     if (isAuthEnabled) {
@@ -20,16 +18,6 @@ export function LandingPage() {
       });
     }
   }, []);
-
-  // Check auth status and redirect if signed in
-  useEffect(() => {
-    if (ClerkAuth) {
-      const checkAuth = async () => {
-        // We need to use the hook inside a component that's wrapped by ClerkProvider
-        // So we'll handle this differently
-      };
-    }
-  }, [ClerkAuth]);
 
   // Redirect to app if already signed in (handled by AuthWrapper in parent)
   
@@ -48,7 +36,7 @@ export function LandingPage() {
         loop
         playsInline
         preload="auto"
-        className="absolute inset-0 w-full h-full object-cover opacity-80 z-0"
+        className="absolute inset-0 w-full h-full object-cover opacity-50 z-0"
       >
         <source src="/background_video.mp4" type="video/mp4" />
       </video>
@@ -76,7 +64,7 @@ export function LandingPage() {
         </div>
 
         {/* Right Section - Auth Panel */}
-        <div className="w-full max-w-md bg-black/90 border-l border-orange-500 flex flex-col">
+        <div className="w-full max-w-md bg-black border-l border-orange-500 flex flex-col">
           {/* Auth Toggle */}
           <div className="flex border-b border-orange-500/30">
             <button
