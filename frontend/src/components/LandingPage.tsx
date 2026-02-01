@@ -41,13 +41,14 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
-      {/* Background Video */}
+      {/* Background Video - streams progressively */}
       <video
         autoPlay
         muted
         loop
         playsInline
-        className="absolute inset-0 w-full h-full object-cover opacity-30"
+        preload="metadata"
+        className="absolute inset-0 w-full h-full object-cover opacity-50"
       >
         <source src="/background_movie.mp4" type="video/mp4" />
       </video>
@@ -67,11 +68,11 @@ export function LandingPage() {
       <div className="flex-1 flex relative z-10">
         {/* Left Section - Hero */}
         <div className="flex-1 flex items-center justify-center p-12">
-          <div className="text-center">
-            <h2 className="text-6xl font-bold text-white mb-4 uppercase tracking-tight">
+          <div className="text-left">
+            <h2 className="text-4xl font-bold text-white mb-2 uppercase tracking-tight">
               Do You See?
             </h2>
-            <h3 className="text-5xl font-bold text-orange-500 uppercase tracking-tight">
+            <h3 className="text-4xl font-bold text-orange-500 uppercase tracking-tight">
               Peer Upon This World!
             </h3>
           </div>
