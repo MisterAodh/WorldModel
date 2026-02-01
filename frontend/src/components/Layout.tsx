@@ -198,7 +198,7 @@ export function Layout() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 relative flex flex-col md:flex-row overflow-hidden">
         {/* Map Container */}
         <div className="flex-1 relative">
           {previewArticle ? (

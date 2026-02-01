@@ -5,7 +5,7 @@ import { DataTab } from './tabs/DataTab';
 import { SuggestionsTab } from './tabs/SuggestionsTab';
 import { ChatPanel } from './ChatPanel';
 import { RegionCreator } from './RegionCreator';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Globe, Maximize2, Minimize2, X, ChevronDown, User } from 'lucide-react';
 
 type SidebarProps = {
@@ -28,8 +28,21 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
   const [showRegionCreator, setShowRegionCreator] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+    updateIsMobile();
+    mediaQuery.addEventListener('change', updateIsMobile);
+    return () => mediaQuery.removeEventListener('change', updateIsMobile);
+  }, []);
 
   const sidebarWidth = isExpanded ? 'w-[85vw]' : 'w-[500px]';
+  const mobileHeight = isExpanded ? 'h-[70vh]' : 'h-[22vh]';
+  const sidebarClassName = isMobile
+    ? `fixed bottom-0 left-0 right-0 ${mobileHeight} bg-black border-t border-orange-500 flex flex-col z-20`
+    : `${sidebarWidth} bg-black border-l border-orange-500 flex flex-col`;
 
   // Get the current user override for this country
   const currentCountryUserId = selectedCountryId 
@@ -51,7 +64,17 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
 
   if (!contextData) {
     return (
-      <div className={`${sidebarWidth} bg-black border-l border-orange-500 flex flex-col`}>
+      <div className={sidebarClassName}>
+        {isMobile && (
+          <button
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="flex items-center justify-center gap-2 py-2 border-b border-orange-500/30 text-xs font-mono uppercase tracking-wide text-orange-500"
+            title={isExpanded ? 'Collapse Panel' : 'Expand Panel'}
+          >
+            <div className="w-10 h-1.5 rounded-full bg-orange-500/60" />
+            {isExpanded ? 'Pull Down' : 'Pull Up'}
+          </button>
+        )}
         <div className="p-6 border-b border-orange-500/30">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -119,8 +142,23 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
   // Check if viewing someone else's data for this country
   const isViewingOtherUser = currentCountryUserId !== null && currentCountryUserId !== undefined;
 
-  return (
-    <div className={`${sidebarWidth} bg-black border-l ${isViewingOtherUser ? 'border-yellow-500' : 'border-orange-500'} flex flex-col`}>
+    return (
+    <div className={isMobile
+      ? `fixed bottom-0 left-0 right-0 ${mobileHeight} bg-black border-t ${isViewingOtherUser ? 'border-yellow-500' : 'border-orange-500'} flex flex-col z-20`
+      : `${sidebarWidth} bg-black border-l ${isViewingOtherUser ? 'border-yellow-500' : 'border-orange-500'} flex flex-col`
+    }>
+      {isMobile && (
+        <button
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className={`flex items-center justify-center gap-2 py-2 border-b text-xs font-mono uppercase tracking-wide ${
+            isViewingOtherUser ? 'text-yellow-500 border-yellow-500/30' : 'text-orange-500 border-orange-500/30'
+          }`}
+          title={isExpanded ? 'Collapse Panel' : 'Expand Panel'}
+        >
+          <div className={`w-10 h-1.5 rounded-full ${isViewingOtherUser ? 'bg-yellow-500/60' : 'bg-orange-500/60'}`} />
+          {isExpanded ? 'Pull Down' : 'Pull Up'}
+        </button>
+      )}
       {/* Header */}
       <div className={`p-6 border-b ${isViewingOtherUser ? 'border-yellow-500/30' : 'border-orange-500/30'}`}>
         <div className="flex items-start justify-between mb-2">
