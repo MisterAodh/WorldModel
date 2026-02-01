@@ -183,9 +183,9 @@ export function Layout() {
       {/* Top Header Bar */}
       <header className="h-12 border-b border-orange-500 bg-black flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2 text-orange-500 hover:text-orange-400">
+          <Link to="/app" className="flex items-center gap-2 text-orange-500 hover:text-orange-400">
             <Globe className="w-5 h-5" />
-            <span className="font-bold font-mono text-sm uppercase tracking-wider">World Tracker</span>
+            <span className="font-bold font-mono text-sm uppercase tracking-wider">Atlascast</span>
           </Link>
           
           {/* View Mode Toggle - only shown when auth is enabled */}

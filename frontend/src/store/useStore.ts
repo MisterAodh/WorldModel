@@ -111,6 +111,9 @@ type Store = {
   
   // User credits
   creditBalance: number;
+  
+  // Auth state
+  authReady: boolean;
 
   // Actions
   fetchCountries: () => Promise<void>;
@@ -133,6 +136,9 @@ type Store = {
   
   // Credit actions
   setCreditBalance: (balance: number) => void;
+  
+  // Auth actions
+  setAuthReady: (ready: boolean) => void;
 };
 
 export const useStore = create<Store>((set, get) => ({
@@ -155,6 +161,9 @@ export const useStore = create<Store>((set, get) => ({
   
   // Credits
   creditBalance: 0,
+  
+  // Auth state
+  authReady: false,
 
   // Actions
   fetchCountries: async () => {
@@ -256,5 +265,10 @@ export const useStore = create<Store>((set, get) => ({
   // Credit actions
   setCreditBalance: (balance) => {
     set({ creditBalance: balance });
+  },
+  
+  // Auth actions
+  setAuthReady: (ready) => {
+    set({ authReady: ready });
   },
 }));

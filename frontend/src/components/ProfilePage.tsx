@@ -393,7 +393,7 @@ export function ProfilePage() {
                   </div>
                 </Link>
                 <Link
-                  to="/"
+                  to="/app"
                   className="flex items-center gap-3 p-4 border border-orange-500/30 hover:bg-gray-900 transition-colors"
                 >
                   <Settings className="w-6 h-6 text-orange-500" />

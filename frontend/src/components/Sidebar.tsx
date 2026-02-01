@@ -56,7 +56,7 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Globe className="w-6 h-6 text-orange-500" />
-              <h1 className="text-xl font-bold text-white uppercase tracking-wide">World Tracker</h1>
+              <h1 className="text-xl font-bold text-white uppercase tracking-wide">Atlascast</h1>
             </div>
             {/* Expand/Collapse button even when no country selected */}
             <button

@@ -75,7 +75,7 @@ export function PublicProfilePage() {
 
   const handleFollow = async () => {
     if (!isSignedIn) {
-      navigate('/sign-in');
+      navigate('/');
       return;
     }
     if (!userId || !profile) return;

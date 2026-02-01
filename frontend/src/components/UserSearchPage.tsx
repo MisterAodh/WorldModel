@@ -52,7 +52,7 @@ export function UserSearchPage() {
 
   const handleFollow = async (userId: string) => {
     if (!isSignedIn) {
-      navigate('/sign-in');
+      navigate('/');
       return;
     }
 
