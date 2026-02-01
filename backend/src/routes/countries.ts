@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { requireAuth } from '../middleware/auth.js';
 
 export const countryRoutes = Router();
 
@@ -19,7 +20,7 @@ countryRoutes.get('/', async (req, res) => {
 });
 
 // Get country by ID with full details
-countryRoutes.get('/:id', async (req, res) => {
+countryRoutes.get('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     console.log('[countries] GET /api/countries/:id', { id });
@@ -32,11 +33,12 @@ countryRoutes.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Country not found' });
     }
 
-    // Get all qualitative tags (for history)
+    // Get user-scoped qualitative tags (for history)
     const tags = await prisma.qualitativeTag.findMany({
       where: {
         scopeType: 'COUNTRY',
         scopeId: id,
+        userId: req.userId!,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -57,9 +59,12 @@ countryRoutes.get('/:id', async (req, res) => {
       orderBy: { gdpSharePercent: 'desc' },
     });
 
-    // Get articles
+    // Get user-scoped articles
     const articleLinks = await prisma.articleCountryLink.findMany({
-      where: { countryId: id },
+      where: {
+        countryId: id,
+        article: { userId: req.userId! },
+      },
       include: {
         article: {
           include: {
@@ -79,11 +84,12 @@ countryRoutes.get('/:id', async (req, res) => {
       take: 20,
     });
 
-    // Get notes
+    // Get user-scoped notes
     const notes = await prisma.note.findMany({
       where: {
         scopeType: 'COUNTRY',
         scopeId: id,
+        userId: req.userId!,
       },
       orderBy: { updatedAt: 'desc' },
     });

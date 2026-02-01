@@ -129,3 +129,22 @@ code {
 .network-view-mode .hover\:bg-orange-400:hover { background-color: hsl(50 100% 60%); }
 .network-view-mode .hover\:bg-orange-500\/10:hover { background-color: hsl(50 100% 50% / 0.1); }
 .network-view-mode .hover\:bg-orange-500\/90:hover { background-color: hsl(50 100% 50% / 0.9); }
+
+/* Hide native number input spinners (little up/down arrows) across the app */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield; /* Firefox */
+  appearance: textfield;
+}
+
+/* Hide legacy WebKit scrollbar arrow buttons (rare, but can show as little arrows) */
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
