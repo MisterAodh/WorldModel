@@ -48,13 +48,10 @@ export function LandingPage() {
         loop
         playsInline
         preload="metadata"
-        className="absolute inset-0 w-full h-full object-cover opacity-50"
+        className="absolute inset-0 w-full h-full object-cover opacity-80 z-0"
       >
-        <source src="/background_movie.mp4" type="video/mp4" />
+        <source src="/background_video.mp4" type="video/mp4" />
       </video>
-
-      {/* Overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
 
       {/* Header */}
       <header className="relative z-10 p-6 border-b border-orange-500/30">
@@ -67,7 +64,7 @@ export function LandingPage() {
       {/* Main Content */}
       <div className="flex-1 flex relative z-10">
         {/* Left Section - Hero */}
-        <div className="flex-1 flex items-center justify-center p-12">
+        <div className="flex-1 flex items-start justify-start p-12 pt-[10vh] pl-[5vw]">
           <div className="text-left">
             <h2 className="text-4xl font-bold text-white mb-2 uppercase tracking-tight">
               Do You See?
