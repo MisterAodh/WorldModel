@@ -28,7 +28,7 @@ export function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
+    <div className="landing-page min-h-screen bg-black flex flex-col relative overflow-hidden">
       {/* Background Video */}
       <video
         autoPlay
@@ -36,7 +36,7 @@ export function LandingPage() {
         loop
         playsInline
         preload="auto"
-        className="absolute inset-0 w-full h-full object-cover opacity-50 z-0"
+        className="landing-video absolute inset-0 w-full h-full object-cover opacity-50 z-0"
       >
         <source src="/background_video.mp4" type="video/mp4" />
       </video>
@@ -50,9 +50,9 @@ export function LandingPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex relative z-10">
+      <div className="landing-content flex-1 flex relative z-10">
         {/* Left Section - Hero */}
-        <div className="flex-1 min-w-0 flex items-start justify-start p-12 pt-[10vh] pl-[5vw]">
+        <div className="landing-hero flex-1 min-w-0 flex items-start justify-start p-12 pt-[10vh] pl-[5vw]">
           <div className="text-left">
             <h2 className="text-4xl font-bold text-white mb-2 uppercase tracking-tight">
                 Peer Upon This World!
@@ -64,7 +64,7 @@ export function LandingPage() {
         </div>
 
         {/* Right Section - Auth Panel */}
-        <div className="w-[420px] max-w-none flex-shrink-0 bg-black/95 border-l border-orange-500 flex flex-col">
+        <div className="landing-auth w-[420px] max-w-none flex-shrink-0 bg-black/95 border-l border-orange-500 flex flex-col">
           {/* Auth Toggle */}
           <div className="flex border-b border-orange-500/30">
             <button
@@ -110,6 +110,27 @@ export function LandingPage() {
           </div>
         </div>
       </div>
+      <style>{`
+        @media (max-aspect-ratio: 7/10) {
+          .landing-video {
+            display: none;
+          }
+
+          .landing-hero {
+            display: none;
+          }
+
+          .landing-content {
+            flex-direction: column;
+          }
+
+          .landing-auth {
+            width: 100%;
+            max-width: none;
+            border-left: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
