@@ -6,9 +6,11 @@ export const countryRoutes = Router();
 // Get all countries
 countryRoutes.get('/', async (req, res) => {
   try {
+    console.log('[countries] GET /api/countries');
     const countries = await prisma.country.findMany({
       orderBy: { name: 'asc' },
     });
+    console.log('[countries] returning', { count: countries.length });
     res.json(countries);
   } catch (error) {
     console.error('Error fetching countries:', error);
@@ -20,6 +22,7 @@ countryRoutes.get('/', async (req, res) => {
 countryRoutes.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('[countries] GET /api/countries/:id', { id });
     
     const country = await prisma.country.findUnique({
       where: { id },

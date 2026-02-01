@@ -68,6 +68,7 @@ export function WorldMap() {
   // Fetch tags for all countries to color the map
   // Respects per-country user overrides
   useEffect(() => {
+    console.log('[WorldMap] countries loaded', { count: countries.length });
     const fetchAllTags = async () => {
       const colors: Record<string, string> = {};
       const overrideCountries = new Set<string>();
@@ -117,17 +118,27 @@ export function WorldMap() {
   }, [countries, colorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides]);
 
   const onClick = useCallback((event: MapLayerMouseEvent) => {
+    console.log('[WorldMap] click event', {
+      features: event.features?.length || 0,
+      lngLat: event.lngLat,
+    });
     const feature = event.features?.[0];
     if (feature && feature.properties) {
       // Mapbox country-boundaries-v1 uses iso_3166_1_alpha_3
       const iso3 = feature.properties.iso_3166_1_alpha_3 || feature.properties.ISO_A3;
       const country = countries.find((c) => c.iso3 === iso3);
       if (country) {
+        console.log('[WorldMap] matched country', { iso3, id: country.id, name: country.name });
         selectCountry(country.id);
-        console.log('Selected country:', country.name, 'ISO3:', iso3);
       } else {
-        console.log('Country not found for ISO3:', iso3, 'Available:', Object.keys(feature.properties));
+        console.warn('[WorldMap] country not found for ISO3', {
+          iso3,
+          availableProps: Object.keys(feature.properties),
+          countryCount: countries.length,
+        });
       }
+    } else {
+      console.warn('[WorldMap] click without feature');
     }
   }, [countries, selectCountry]);
 

@@ -168,20 +168,24 @@ export const useStore = create<Store>((set, get) => ({
   // Actions
   fetchCountries: async () => {
     try {
+      console.log('[useStore] fetchCountries start');
       const response = await getCountries();
+      console.log('[useStore] fetchCountries success', { count: response.data?.length });
       set({ countries: response.data });
     } catch (error) {
-      console.error('Error fetching countries:', error);
+      console.error('[useStore] fetchCountries error', error);
     }
   },
 
   selectCountry: async (id: string) => {
+    console.log('[useStore] selectCountry', { id });
     set({ loading: true, selectedCountryId: id, selectedRegionId: null });
     try {
       const response = await getCountry(id);
+      console.log('[useStore] selectCountry success', { id, hasData: !!response.data });
       set({ contextData: response.data, loading: false });
     } catch (error) {
-      console.error('Error fetching country:', error);
+      console.error('[useStore] selectCountry error', error);
       set({ loading: false });
     }
   },
