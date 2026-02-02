@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getCountries, getCountry, getRegion } from '../lib/api';
+import { getCountries, getCountry } from '../lib/api';
 
 export type Country = {
   id: string;
@@ -80,7 +80,6 @@ export type NetworkUser = {
 
 export type ContextData = {
   country?: Country;
-  region?: any;
   tags: QualitativeTag[];
   metrics: CountryMetrics | null;
   industries: Industry[];
@@ -95,10 +94,10 @@ type Store = {
   // Data
   countries: Country[];
   selectedCountryId: string | null;
-  selectedRegionId: string | null;
   contextData: ContextData | null;
   loading: boolean;
   colorDimension: 'economic' | 'social' | 'political' | 'ideological';
+  tagsVersion: number;
   
   // Network/Social
   viewMode: ViewMode;
@@ -118,10 +117,10 @@ type Store = {
   // Actions
   fetchCountries: () => Promise<void>;
   selectCountry: (id: string) => Promise<void>;
-  selectRegion: (id: string) => Promise<void>;
   clearSelection: () => void;
   setColorDimension: (dimension: 'economic' | 'social' | 'political' | 'ideological') => void;
   refreshContext: () => Promise<void>;
+  bumpTagsVersion: () => void;
   
   // Network actions
   setViewMode: (mode: ViewMode) => void;
@@ -145,10 +144,10 @@ export const useStore = create<Store>((set, get) => ({
   // Initial state
   countries: [],
   selectedCountryId: null,
-  selectedRegionId: null,
   contextData: null,
   loading: false,
   colorDimension: 'economic',
+  tagsVersion: 0,
   
   // Network state
   viewMode: 'my-analysis',
@@ -179,7 +178,7 @@ export const useStore = create<Store>((set, get) => ({
 
   selectCountry: async (id: string) => {
     console.log('[useStore] selectCountry', { id });
-    set({ loading: true, selectedCountryId: id, selectedRegionId: null });
+    set({ loading: true, selectedCountryId: id });
     try {
       const response = await getCountry(id);
       console.log('[useStore] selectCountry success', { id, hasData: !!response.data });
@@ -190,21 +189,9 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  selectRegion: async (id: string) => {
-    set({ loading: true, selectedRegionId: id, selectedCountryId: null });
-    try {
-      const response = await getRegion(id);
-      set({ contextData: response.data, loading: false });
-    } catch (error) {
-      console.error('Error fetching region:', error);
-      set({ loading: false });
-    }
-  },
-
   clearSelection: () => {
     set({
       selectedCountryId: null,
-      selectedRegionId: null,
       contextData: null,
     });
   },
@@ -213,12 +200,14 @@ export const useStore = create<Store>((set, get) => ({
     set({ colorDimension: dimension });
   },
 
+  bumpTagsVersion: () => {
+    set((state) => ({ tagsVersion: state.tagsVersion + 1 }));
+  },
+
   refreshContext: async () => {
-    const { selectedCountryId, selectedRegionId } = get();
+    const { selectedCountryId } = get();
     if (selectedCountryId) {
       await get().selectCountry(selectedCountryId);
-    } else if (selectedRegionId) {
-      await get().selectRegion(selectedRegionId);
     }
   },
   

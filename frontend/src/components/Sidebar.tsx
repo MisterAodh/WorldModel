@@ -4,7 +4,6 @@ import { ArticlesTab } from './tabs/ArticlesTab';
 import { DataTab } from './tabs/DataTab';
 import { SuggestionsTab } from './tabs/SuggestionsTab';
 import { ChatPanel } from './ChatPanel';
-import { RegionCreator } from './RegionCreator';
 import { useEffect, useState } from 'react';
 import { Globe, Maximize2, Minimize2, X, ChevronDown, User } from 'lucide-react';
 
@@ -16,7 +15,6 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
   const { 
     contextData, 
     selectedCountryId, 
-    selectedRegionId, 
     clearSelection, 
     colorDimension, 
     setColorDimension,
@@ -25,7 +23,6 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
     setCountryUserOverride,
   } = useStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'articles' | 'data' | 'suggestions'>('overview');
-  const [showRegionCreator, setShowRegionCreator] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -91,7 +88,7 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
             </button>
           </div>
           <p className="text-sm text-gray-400">
-            Select a country or region on the map to view details
+            Select a country on the map to view details
           </p>
         </div>
 
@@ -115,20 +112,6 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
           </div>
         </div>
 
-        {/* Region Creator */}
-        <div className="p-6">
-          <button
-            onClick={() => setShowRegionCreator(true)}
-            className="w-full px-4 py-2 bg-orange-500 text-black font-medium uppercase tracking-wide hover:bg-orange-400 transition-colors text-sm"
-          >
-            Create Region
-          </button>
-        </div>
-
-        {showRegionCreator && (
-          <RegionCreator onClose={() => setShowRegionCreator(false)} />
-        )}
-
         <div className="flex-1" />
         
         <ChatPanel />
@@ -136,8 +119,8 @@ export function Sidebar({ onOpenArticle }: SidebarProps) {
     );
   }
 
-  const contextName = contextData.country?.name || contextData.region?.name || 'Unknown';
-  const contextType = selectedCountryId ? 'Country' : 'Region';
+  const contextName = contextData.country?.name || 'Unknown';
+  const contextType = 'Country';
   
   // Check if viewing someone else's data for this country
   const isViewingOtherUser = currentCountryUserId !== null && currentCountryUserId !== undefined;

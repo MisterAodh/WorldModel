@@ -71,7 +71,7 @@ tagRoutes.get('/:scopeType/:scopeId', optionalAuth, async (req, res) => {
 
 // Bulk tag fetch for many scopes (map coloring, etc.)
 // POST /api/tags/bulk
-// Body: { scopeType: 'country' | 'region', scopeIds: string[], userId?: string }
+// Body: { scopeType: 'country', scopeIds: string[], userId?: string }
 // - If userId is omitted, uses the current authenticated user (req.userId)
 // - If no user context exists, returns empty results
 tagRoutes.post('/bulk', requireAuth, async (req, res) => {
@@ -124,7 +124,7 @@ tagRoutes.post('/bulk', requireAuth, async (req, res) => {
 });
 
 // Create new qualitative tag
-tagRoutes.post('/', optionalAuth, async (req, res) => {
+tagRoutes.post('/', requireAuth, async (req, res) => {
   try {
     const { scopeType, scopeId, category, value, source, note } = req.body;
 
@@ -136,7 +136,7 @@ tagRoutes.post('/', optionalAuth, async (req, res) => {
         value,
         source: source || 'manual',
         note,
-        userId: req.userId || null,
+        userId: req.userId!,
       },
       include: {
         user: {
@@ -158,7 +158,7 @@ tagRoutes.post('/', optionalAuth, async (req, res) => {
 });
 
 // Delete a qualitative tag
-tagRoutes.delete('/:id', optionalAuth, async (req, res) => {
+tagRoutes.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -171,8 +171,8 @@ tagRoutes.delete('/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ error: 'Tag not found' });
     }
 
-    // If tag has a user and current user is different, deny
-    if (tag.userId && req.userId && tag.userId !== req.userId) {
+    // If current user is different, deny
+    if (tag.userId !== req.userId) {
       return res.status(403).json({ error: 'Not authorized to delete this tag' });
     }
 

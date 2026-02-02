@@ -8,7 +8,6 @@ import { countries, metricDefinitions } from './seed.js';
 
 // Routes
 import { countryRoutes } from './routes/countries.js';
-import { regionRoutes } from './routes/regions.js';
 import { tagRoutes } from './routes/tags.js';
 import { metricRoutes } from './routes/metrics.js';
 import { industryRoutes } from './routes/industries.js';
@@ -73,9 +72,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Countries and regions are public (read-only geography data)
+// Countries are public (read-only geography data)
 app.use('/api/countries', countryRoutes);
-app.use('/api/regions', regionRoutes);
 
 // Metric definitions are public reference data
 app.use('/api/metric-definitions', metricDefinitionRoutes);

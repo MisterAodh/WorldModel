@@ -15,7 +15,7 @@ type ChatPanelProps = {
 };
 
 export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
-  const { selectedCountryId, selectedRegionId, refreshContext, creditBalance } = useStore();
+  const { selectedCountryId, refreshContext, creditBalance } = useStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -198,8 +198,8 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
     try {
       const response = await sendChatMessage({
         message: userMessage,
-        contextType: selectedCountryId ? 'country' : selectedRegionId ? 'region' : undefined,
-        contextId: selectedCountryId || selectedRegionId || undefined,
+        contextType: selectedCountryId ? 'country' : undefined,
+        contextId: selectedCountryId || undefined,
         conversationHistory: messages.slice(-10), // Last 10 messages for context
       });
 
@@ -263,7 +263,7 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-center text-sm text-gray-400 py-8">
-            <p className="mb-2">Ask me anything about the selected country or region!</p>
+            <p className="mb-2">Ask me anything about the selected country!</p>
             <p className="text-xs text-gray-500">
               Try: "Analyze the economic situation" or "Suggest sentiment scores"
             </p>

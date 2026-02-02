@@ -12,17 +12,17 @@ type Suggestion = {
 };
 
 export function SuggestionsTab() {
-  const { selectedCountryId, selectedRegionId, refreshContext } = useStore();
+  const { selectedCountryId, refreshContext, bumpTagsVersion } = useStore();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchSuggestions();
-  }, [selectedCountryId, selectedRegionId]);
+  }, [selectedCountryId]);
 
   const fetchSuggestions = async () => {
     const scopeType = selectedCountryId ? 'country' : 'region';
-    const scopeId = selectedCountryId || selectedRegionId;
+    const scopeId = selectedCountryId;
 
     if (!scopeId) return;
 
@@ -42,6 +42,7 @@ export function SuggestionsTab() {
       await approveSuggestion(id);
       await fetchSuggestions();
       await refreshContext();
+      bumpTagsVersion();
     } catch (error) {
       console.error('Error approving suggestion:', error);
     }

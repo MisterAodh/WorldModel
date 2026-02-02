@@ -4,7 +4,7 @@ import { createArticle, getArticles, api } from '../../lib/api';
 import { ExternalLink, Plus, Loader2, Edit2, Save, X, Eye } from 'lucide-react';
 
 export function ArticlesTab() {
-  const { contextData, selectedCountryId, selectedRegionId, refreshContext, countryUserOverrides, networkUsers } = useStore();
+  const { contextData, selectedCountryId, refreshContext, countryUserOverrides, networkUsers } = useStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -56,7 +56,7 @@ export function ArticlesTab() {
     e.preventDefault();
     if (!url.trim()) return;
 
-    const scopeId = selectedCountryId || selectedRegionId;
+    const scopeId = selectedCountryId;
     if (!scopeId) return;
 
     setLoading(true);

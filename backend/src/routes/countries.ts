@@ -23,6 +23,12 @@ countryRoutes.get('/', async (req, res) => {
 countryRoutes.get('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
+    const { userId: filterUserId } = req.query;
+    const effectiveUserId = (filterUserId as string) || req.userId;
+
+    if (!effectiveUserId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
     console.log('[countries] GET /api/countries/:id', { id });
     
     const country = await prisma.country.findUnique({
@@ -38,7 +44,7 @@ countryRoutes.get('/:id', requireAuth, async (req, res) => {
       where: {
         scopeType: 'COUNTRY',
         scopeId: id,
-        userId: req.userId!,
+        userId: effectiveUserId,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -63,7 +69,7 @@ countryRoutes.get('/:id', requireAuth, async (req, res) => {
     const articleLinks = await prisma.articleCountryLink.findMany({
       where: {
         countryId: id,
-        article: { userId: req.userId! },
+        article: { userId: effectiveUserId },
       },
       include: {
         article: {
@@ -89,7 +95,7 @@ countryRoutes.get('/:id', requireAuth, async (req, res) => {
       where: {
         scopeType: 'COUNTRY',
         scopeId: id,
-        userId: req.userId!,
+        userId: effectiveUserId,
       },
       orderBy: { updatedAt: 'desc' },
     });

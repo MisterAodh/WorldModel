@@ -11,7 +11,7 @@ const categoryConfig = {
 };
 
 export function QualitativeTagsEditor() {
-  const { contextData, selectedCountryId, selectedRegionId, refreshContext, countryUserOverrides, networkUsers } = useStore();
+  const { contextData, selectedCountryId, refreshContext, countryUserOverrides, networkUsers, bumpTagsVersion } = useStore();
   
   // Check if viewing another user's data for this country
   const currentOverrideUserId = selectedCountryId ? countryUserOverrides[selectedCountryId] : null;
@@ -121,6 +121,7 @@ export function QualitativeTagsEditor() {
         }
       }
       await refreshContext();
+      bumpTagsVersion();
       setAiScores(null);
       setScoreInput({});
     } catch (error) {
@@ -133,8 +134,8 @@ export function QualitativeTagsEditor() {
   if (!contextData) return null;
 
   const handleAddScore = async (category: keyof typeof categoryConfig) => {
-    const scopeType = selectedCountryId ? 'country' : 'region';
-    const scopeId = selectedCountryId || selectedRegionId;
+    const scopeType = 'country';
+    const scopeId = selectedCountryId;
     const score = parseInt(scoreInput[category] || '0');
 
     if (!scopeId || score === 0) return;
@@ -149,6 +150,7 @@ export function QualitativeTagsEditor() {
       });
       setScoreInput({ ...scoreInput, [category]: '' });
       await refreshContext();
+      bumpTagsVersion();
     } catch (error) {
       console.error('Error adding score:', error);
     } finally {
@@ -161,6 +163,7 @@ export function QualitativeTagsEditor() {
     try {
       await api.delete(`/tags/${tagId}`);
       await refreshContext();
+      bumpTagsVersion();
     } catch (error) {
       console.error('Error deleting tag:', error);
     } finally {

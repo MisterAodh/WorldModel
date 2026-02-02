@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { WorldMap } from './WorldMap';
 import { Sidebar } from './Sidebar';
 import { ArticlePreview } from './ArticlePreview';
-import { CountrySelector } from './CountrySelector';
 import { NetworkSelector } from './NetworkSelector';
 import { Globe, CreditCard, MessageSquare, Users, User } from 'lucide-react';
 import { useStore } from '../store/useStore';
@@ -137,7 +136,6 @@ function DemoModeHeader() {
 
 export function Layout() {
   const [previewArticle, setPreviewArticle] = useState<{ url: string; title?: string } | null>(null);
-  const [showCountrySelector, setShowCountrySelector] = useState(false);
   
   const setCreditBalance = useStore((state) => state.setCreditBalance);
   const setNetworkUsers = useStore((state) => state.setNetworkUsers);
@@ -210,15 +208,6 @@ export function Layout() {
           ) : (
             <>
               <WorldMap />
-              {/* Floating "Select Country" button */}
-              <button
-                onClick={() => setShowCountrySelector(true)}
-                className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 bg-orange-500 text-black font-semibold shadow-lg hover:bg-orange-400 transition-colors z-10"
-              >
-                <Globe className="w-4 h-4" />
-                Select Country
-              </button>
-              
               {/* Network View Indicator */}
               {viewMode === 'network' && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black border border-orange-500 text-orange-500 text-sm font-mono z-10">
@@ -232,8 +221,6 @@ export function Layout() {
         {/* Sidebar */}
         <Sidebar onOpenArticle={setPreviewArticle} />
 
-        {/* Country Selector Modal */}
-        {showCountrySelector && <CountrySelector onClose={() => setShowCountrySelector(false)} />}
       </div>
     </div>
   );

@@ -107,69 +107,12 @@ chatRoutes.post('/', optionalAuth, async (req, res) => {
         })),
         notes: notes.map(n => n.content),
       };
-    } else if (contextType === 'region' && contextId) {
-      // Get region details
-      const region = await prisma.region.findUnique({
-        where: { id: contextId },
-        include: {
-          memberships: {
-            include: {
-              country: true,
-            },
-          },
-        },
-      });
-
-      const countryIds = region?.memberships.map(m => m.countryId) || [];
-
-      // Build user filter
-      const userFilter = req.userId ? { userId: req.userId } : {};
-
-      // Get region-specific tags
-      const tags = await prisma.qualitativeTag.findMany({
-        where: {
-          scopeType: 'REGION',
-          scopeId: contextId,
-          ...userFilter,
-        },
-        orderBy: { createdAt: 'desc' },
-        distinct: ['category'],
-      });
-
-      // Get aggregated metrics
-      const metrics = await Promise.all(
-        countryIds.map(countryId =>
-          prisma.countryMetrics.findFirst({
-            where: { countryId },
-            orderBy: { year: 'desc' },
-          })
-        )
-      );
-
-      const validMetrics = metrics.filter(m => m !== null);
-      const aggregatedMetrics = validMetrics.length > 0 ? {
-        totalPopulation: validMetrics.reduce((sum, m) => sum + (m?.population || BigInt(0)), BigInt(0)).toString(),
-        avgImmigrationRate: validMetrics.reduce((sum, m) => sum + (m?.immigrationRate || 0), 0) / validMetrics.length,
-        avgEmigrationRate: validMetrics.reduce((sum, m) => sum + (m?.emigrationRate || 0), 0) / validMetrics.length,
-      } : null;
-
-      contextData = {
-        type: 'region',
-        region: region?.name,
-        memberCountries: region?.memberships.map(m => m.country.name),
-        tags: tags.map(t => ({
-          category: t.category,
-          value: t.value,
-          note: t.note,
-        })),
-        aggregatedMetrics,
-      };
     }
 
     // Build system prompt for Claude
     const systemPrompt = `You are an intelligent assistant for a Geopolitical Intelligence Workspace.
 
-The user is currently viewing: ${contextData.type === 'country' ? `Country: ${contextData.country}` : contextData.type === 'region' ? `Region: ${contextData.region}` : 'the global map'}
+The user is currently viewing: ${contextData.type === 'country' ? `Country: ${contextData.country}` : 'the global map'}
 
 Context data from our database:
 ${JSON.stringify(contextData, null, 2)}
@@ -375,7 +318,7 @@ Only return suggestions if you have enough information. If not, return {"suggest
           for (const suggestion of parsedSuggestions.suggestions) {
             await prisma.aISuggestion.create({
               data: {
-                scopeType: contextType === 'country' ? 'COUNTRY' : 'REGION',
+                scopeType: 'COUNTRY',
                 scopeId: contextId,
                 suggestionType: suggestion.type,
                 payload: suggestion,

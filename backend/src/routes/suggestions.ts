@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { requireAuth } from '../middleware/auth.js';
 
 export const suggestionRoutes = Router();
 
@@ -26,7 +27,7 @@ suggestionRoutes.get('/:scopeType/:scopeId', async (req, res) => {
 });
 
 // Approve suggestion
-suggestionRoutes.post('/:id/approve', async (req, res) => {
+suggestionRoutes.post('/:id/approve', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -55,6 +56,7 @@ suggestionRoutes.post('/:id/approve', async (req, res) => {
             value: payload.value,
             source: 'ai_suggested',
             note: payload.note,
+            userId: req.userId!,
           },
         });
         break;

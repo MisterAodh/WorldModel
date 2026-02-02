@@ -11,7 +11,7 @@ export const articleRoutes = Router();
 // Get articles, optionally filtered by country and/or user
 articleRoutes.get('/', optionalAuth, async (req, res) => {
   try {
-    const { countryId, regionId, userId: filterUserId } = req.query;
+    const { countryId, userId: filterUserId } = req.query;
 
     let where: any = {};
     
@@ -30,19 +30,6 @@ articleRoutes.get('/', optionalAuth, async (req, res) => {
       where.countryLinks = {
         some: {
           countryId: countryId as string,
-        },
-      };
-    } else if (regionId) {
-      // Get countries in the region
-      const memberships = await prisma.regionMembership.findMany({
-        where: { regionId: regionId as string },
-        select: { countryId: true },
-      });
-      const countryIds = memberships.map(m => m.countryId);
-      
-      where.countryLinks = {
-        some: {
-          countryId: { in: countryIds },
         },
       };
     }

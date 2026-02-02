@@ -134,50 +134,11 @@ model Country {
   articleLinks         ArticleCountryLink[]
   metrics              CountryMetrics[]
   industries           IndustryShare[]
-  regionMemberships    RegionMembership[]
   metricData           CountryMetricData[]
   aggregationJobs      DataAggregationJob[]
   
   @@index([iso3])
   @@map("countries")
-}
-
-enum RegionType {
-  LOGICAL_GROUP
-  COUNTRY_SPLIT
-}
-
-model Region {
-  id                   String                 @id @default(cuid())
-  name                 String
-  type                 RegionType             @default(LOGICAL_GROUP)
-  parentId             String?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  
-  // Relations
-  parent               Region?                @relation("RegionHierarchy", fields: [parentId], references: [id])
-  children             Region[]               @relation("RegionHierarchy")
-  memberships          RegionMembership[]
-  
-  @@map("regions")
-}
-
-model RegionMembership {
-  id                   String                 @id @default(cuid())
-  regionId             String
-  countryId            String
-  geometryData         Json?                  // For country splits - stores GeoJSON
-  createdAt            DateTime               @default(now())
-  
-  // Relations
-  region               Region                 @relation(fields: [regionId], references: [id], onDelete: Cascade)
-  country              Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  
-  @@unique([regionId, countryId])
-  @@index([regionId])
-  @@index([countryId])
-  @@map("region_memberships")
 }
 
 // ============================================
@@ -228,7 +189,6 @@ model ArticleCountryLink {
 
 enum ScopeType {
   COUNTRY
-  REGION
 }
 
 enum TagCategory {
@@ -248,8 +208,8 @@ model QualitativeTag {
   note                 String?                @db.Text
   
   // User ownership
-  userId               String?
-  user                 User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId               String
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   createdAt            DateTime               @default(now())
   

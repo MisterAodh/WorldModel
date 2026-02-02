@@ -10,11 +10,11 @@ type ArticlePreviewProps = {
 };
 
 export function ArticlePreview({ url, title, onClose }: ArticlePreviewProps) {
-  const { selectedCountryId, selectedRegionId, refreshContext } = useStore();
+  const { selectedCountryId, refreshContext } = useStore();
   const [adding, setAdding] = useState(false);
 
   const handleAddArticle = async () => {
-    if (!selectedCountryId && !selectedRegionId) return;
+    if (!selectedCountryId) return;
     
     setAdding(true);
     try {
@@ -43,7 +43,7 @@ export function ArticlePreview({ url, title, onClose }: ArticlePreviewProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleAddArticle}
-            disabled={adding || (!selectedCountryId && !selectedRegionId)}
+            disabled={adding || !selectedCountryId}
             className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             <Plus className="w-4 h-4" />

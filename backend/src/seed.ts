@@ -213,8 +213,6 @@ export async function seedDatabase() {
   await prisma.qualitativeTag.deleteMany({});
   await prisma.articleCountryLink.deleteMany({});
   await prisma.article.deleteMany({});
-  await prisma.regionMembership.deleteMany({});
-  await prisma.region.deleteMany({});
   await prisma.country.deleteMany({});
   await prisma.metricDefinition.deleteMany({});
 

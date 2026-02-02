@@ -24,21 +24,12 @@ export const setAuthToken = (token: string | null) => {
 export const getAuthToken = () => authToken;
 
 // ============================================
-// COUNTRIES & REGIONS
+// COUNTRIES
 // ============================================
 
 export const getCountries = () => api.get('/countries');
-export const getCountry = (id: string) => api.get(`/countries/${id}`);
-
-export const getRegions = () => api.get('/regions');
-export const getRegion = (id: string) => api.get(`/regions/${id}`);
-export const createRegion = (data: { name: string; type?: string; countryIds: string[] }) =>
-  api.post('/regions', data);
-export const addCountryToRegion = (regionId: string, countryId: string) =>
-  api.post(`/regions/${regionId}/members`, { countryId });
-export const removeCountryFromRegion = (regionId: string, countryId: string) =>
-  api.delete(`/regions/${regionId}/members/${countryId}`);
-export const deleteRegion = (id: string) => api.delete(`/regions/${id}`);
+export const getCountry = (id: string, userId?: string) =>
+  api.get(`/countries/${id}`, { params: userId ? { userId } : undefined });
 
 // ============================================
 // USERS
@@ -131,7 +122,7 @@ export const deleteIndustry = (id: string) => api.delete(`/industries/${id}`);
 // ARTICLES
 // ============================================
 
-export const getArticles = (params?: { countryId?: string; regionId?: string; userId?: string }) =>
+export const getArticles = (params?: { countryId?: string; userId?: string }) =>
   api.get('/articles', { params });
 export const createArticle = (data: { url: string; countryIds?: string[]; title?: string; keyNotes?: string }) =>
   api.post('/articles', data);
