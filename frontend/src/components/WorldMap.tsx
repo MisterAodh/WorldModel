@@ -59,6 +59,7 @@ export function WorldMap() {
   const { countries, selectCountry, selectedCountryId, colorDimension, setColorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides } = useStore();
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [hoveredIso3, setHoveredIso3] = useState<string | null>(null);
+  const [countryColors, setCountryColors] = useState<Record<string, string>>({});
   const [showDropdown, setShowDropdown] = useState(false);
   
   // Track which countries have user overrides (for yellow borders)
@@ -170,6 +171,7 @@ export function WorldMap() {
       }
 
       setCountriesWithOverrides(overrideCountries);
+      setCountryColors(colors);
 
       // Push colors onto the map via feature-state in small batches for instant perceived load.
       colorsByIso3Ref.current = colors;
@@ -281,11 +283,22 @@ export function WorldMap() {
     );
   }, [mapReady, applyInBatches, setFeatureStateSafe]);
 
+  const fallbackFillColorExpression: any = useMemo(() => (
+    Object.keys(countryColors).length > 0
+      ? [
+          'match',
+          ['get', 'iso_3166_1_alpha_3'],
+          ...Object.entries(countryColors).flatMap(([iso3, color]) => [iso3, color]),
+          '#1f2937',
+        ]
+      : '#1f2937'
+  ), [countryColors]);
+
   const fillColorExpression: any = useMemo(() => ([
     'coalesce',
     ['feature-state', 'fillColor'],
-    '#1f2937',
-  ]), []);
+    fallbackFillColorExpression,
+  ]), [fallbackFillColorExpression]);
 
   const borderColorExpression: any = useMemo(() => ([
     'case',
@@ -361,6 +374,16 @@ export function WorldMap() {
         onMouseLeave={onMouseLeave}
         cursor={hoveredCountry ? 'pointer' : 'grab'}
         onLoad={() => setMapReady(true)}
+        onIdle={() => {
+          const colors = colorsByIso3Ref.current;
+          const iso3List = Object.keys(colors);
+          if (iso3List.length === 0) return;
+          applyInBatches(
+            iso3List,
+            (iso3) => setFeatureStateSafe(iso3, { fillColor: colors[iso3] }),
+            80
+          );
+        }}
       >
         <Source
           id="countries"
