@@ -56,7 +56,7 @@ const categoryDisplayNames = {
 };
 
 export function WorldMap() {
-  const { countries, selectCountry, selectedCountryId, colorDimension, setColorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides } = useStore();
+  const { countries, selectCountry, selectedCountryId, colorDimension, setColorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides, authReady } = useStore();
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [hoveredIso3, setHoveredIso3] = useState<string | null>(null);
   const [countryColors, setCountryColors] = useState<Record<string, string>>({});
@@ -102,6 +102,7 @@ export function WorldMap() {
   // Fetch tags for all countries to color the map
   // Respects per-country user overrides
   useEffect(() => {
+    if (!authReady) return;
     console.log('[WorldMap] countries loaded', { count: countries.length });
     const fetchAllTags = async () => {
       const colors: Record<string, string> = {};
@@ -188,7 +189,7 @@ export function WorldMap() {
     if (countries.length > 0) {
       fetchAllTags();
     }
-  }, [countries, colorDimension, viewMode, selectedNetworkUserId, countryUserOverrides, mapReady, applyInBatches, setFeatureStateSafe]);
+  }, [authReady, countries, colorDimension, viewMode, selectedNetworkUserId, countryUserOverrides, mapReady, applyInBatches, setFeatureStateSafe]);
 
   const onClick = useCallback((event: MapLayerMouseEvent) => {
     console.log('[WorldMap] click event', {
