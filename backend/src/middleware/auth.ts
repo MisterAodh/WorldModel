@@ -87,24 +87,41 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         counter++;
       }
 
-      user = await prisma.user.create({
-        data: {
-          clerkId: clerkUserId,
-          username,
-          displayName: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
-          avatarUrl: clerkUser.imageUrl,
-          creditBalance: 100, // $1.00 in cents
-        },
-        select: {
-          id: true,
-          clerkId: true,
-          username: true,
-          displayName: true,
-          creditBalance: true,
-        },
-      });
+      try {
+        user = await prisma.user.create({
+          data: {
+            clerkId: clerkUserId,
+            username,
+            displayName: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
+            avatarUrl: clerkUser.imageUrl,
+            creditBalance: 100, // $1.00 in cents
+          },
+          select: {
+            id: true,
+            clerkId: true,
+            username: true,
+            displayName: true,
+            creditBalance: true,
+          },
+        });
 
-      console.log(`Created new user: ${user.username} (${user.id})`);
+        console.log(`Created new user: ${user.username} (${user.id})`);
+      } catch (err: any) {
+        if (err?.code === 'P2002') {
+          user = await prisma.user.findUnique({
+            where: { clerkId: clerkUserId },
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              displayName: true,
+              creditBalance: true,
+            },
+          });
+        } else {
+          throw err;
+        }
+      }
     }
 
     req.userId = user.id;

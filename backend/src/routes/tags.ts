@@ -74,7 +74,7 @@ tagRoutes.get('/:scopeType/:scopeId', optionalAuth, async (req, res) => {
 // Body: { scopeType: 'country' | 'region', scopeIds: string[], userId?: string }
 // - If userId is omitted, uses the current authenticated user (req.userId)
 // - If no user context exists, returns empty results
-tagRoutes.post('/bulk', optionalAuth, async (req, res) => {
+tagRoutes.post('/bulk', requireAuth, async (req, res) => {
   try {
     const { scopeType, scopeIds, userId: filterUserId } = req.body || {};
 
@@ -86,7 +86,7 @@ tagRoutes.post('/bulk', optionalAuth, async (req, res) => {
     const effectiveUserId = filterUserId || req.userId;
 
     if (!effectiveUserId) {
-      return res.json({ byScopeId: {} });
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
     // Defensive: cap request size
