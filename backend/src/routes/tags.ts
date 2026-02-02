@@ -104,6 +104,9 @@ tagRoutes.post('/bulk', optionalAuth, async (req, res) => {
         value: true,
         createdAt: true,
       },
+      // Only return the latest tag per (scopeId, category) to keep payload + processing tiny.
+      // This endpoint is primarily used for map coloring; we don't need tag history here.
+      distinct: ['scopeId', 'category'],
       orderBy: { createdAt: 'desc' },
     });
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Map, { Source, Layer, MapLayerMouseEvent } from 'react-map-gl';
 import { useStore } from '../store/useStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -59,11 +59,44 @@ export function WorldMap() {
   const { countries, selectCountry, selectedCountryId, colorDimension, setColorDimension, contextData, viewMode, selectedNetworkUserId, countryUserOverrides } = useStore();
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [hoveredIso3, setHoveredIso3] = useState<string | null>(null);
-  const [countryColors, setCountryColors] = useState<Record<string, string>>({});
   const [showDropdown, setShowDropdown] = useState(false);
   
   // Track which countries have user overrides (for yellow borders)
   const [countriesWithOverrides, setCountriesWithOverrides] = useState<Set<string>>(new Set());
+
+  // Mapbox map ref so we can push colors via feature-state (much faster than rebuilding huge "match" expressions)
+  const mapRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const hoveredIso3Ref = useRef<string | null>(null);
+  const selectedIso3Ref = useRef<string | null>(null);
+  const colorsByIso3Ref = useRef<Record<string, string>>({});
+  const overridesIso3Ref = useRef<Set<string>>(new Set());
+
+  const setFeatureStateSafe = useCallback((iso3: string, state: Record<string, any>) => {
+    const map = mapRef.current?.getMap?.();
+    if (!map || !mapReady) return;
+    try {
+      map.setFeatureState(
+        { source: 'countries', sourceLayer: 'country_boundaries', id: iso3 },
+        state
+      );
+    } catch {
+      // If tiles aren't loaded yet, Mapbox may throw. We'll retry on next pass.
+    }
+  }, [mapReady]);
+
+  const applyInBatches = useCallback(
+    (items: string[], applyOne: (iso3: string) => void, batchSize = 40) => {
+      let idx = 0;
+      const step = () => {
+        const end = Math.min(items.length, idx + batchSize);
+        for (; idx < end; idx++) applyOne(items[idx]);
+        if (idx < items.length) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
+    []
+  );
 
   // Fetch tags for all countries to color the map
   // Respects per-country user overrides
@@ -121,8 +154,8 @@ export function WorldMap() {
           );
 
           if (dimensionTags.length > 0) {
-            const totalScore = dimensionTags.reduce((sum, tag) => sum + (tag.value || 0), 0);
-            colors[country.iso3] = interpolateColor(totalScore, colorDimension);
+            // Bulk endpoint returns latest per category; we only need a single value here.
+            colors[country.iso3] = interpolateColor(dimensionTags[0].value || 0, colorDimension);
           } else {
             colors[country.iso3] = '#374151';
           }
@@ -136,14 +169,24 @@ export function WorldMap() {
         }
       }
 
-      setCountryColors(colors);
       setCountriesWithOverrides(overrideCountries);
+
+      // Push colors onto the map via feature-state in small batches for instant perceived load.
+      colorsByIso3Ref.current = colors;
+      if (mapReady) {
+        const iso3List = Object.keys(colors);
+        applyInBatches(
+          iso3List,
+          (iso3) => setFeatureStateSafe(iso3, { fillColor: colors[iso3] }),
+          60
+        );
+      }
     };
 
     if (countries.length > 0) {
       fetchAllTags();
     }
-  }, [countries, colorDimension, viewMode, selectedNetworkUserId, countryUserOverrides]);
+  }, [countries, colorDimension, viewMode, selectedNetworkUserId, countryUserOverrides, mapReady, applyInBatches, setFeatureStateSafe]);
 
   const onClick = useCallback((event: MapLayerMouseEvent) => {
     console.log('[WorldMap] click event', {
@@ -177,58 +220,94 @@ export function WorldMap() {
       const iso3 = feature.properties.iso_3166_1_alpha_3 || feature.properties.ISO_A3;
       setHoveredCountry(name);
       setHoveredIso3(iso3);
+
+      const prev = hoveredIso3Ref.current;
+      if (prev && prev !== iso3) setFeatureStateSafe(prev, { hovered: false });
+      if (iso3 && prev !== iso3) setFeatureStateSafe(iso3, { hovered: true });
+      hoveredIso3Ref.current = iso3 || null;
     }
-  }, []);
+  }, [setFeatureStateSafe]);
 
   const onMouseLeave = useCallback(() => {
     setHoveredCountry(null);
     setHoveredIso3(null);
-  }, []);
+    const prev = hoveredIso3Ref.current;
+    if (prev) setFeatureStateSafe(prev, { hovered: false });
+    hoveredIso3Ref.current = null;
+  }, [setFeatureStateSafe]);
 
   // Get selected country ISO3 for highlighting
   const selectedIso3 = selectedCountryId 
     ? countries.find(c => c.id === selectedCountryId)?.iso3 
     : null;
 
-  // Create color expression for the fill layer
-  const fillColorExpression: any = Object.keys(countryColors).length > 0 
-    ? [
-        'match',
-        ['get', 'iso_3166_1_alpha_3'],
-        ...Object.entries(countryColors).flatMap(([iso3, color]) => [iso3, color]),
-        '#1f2937' // default
-      ]
-    : '#1f2937'; // Use simple color until we have country data
+  // Keep selected + overrides in feature-state (fast: no huge match expressions)
+  useEffect(() => {
+    if (!mapReady) return;
 
-  // Create border color expression to highlight selected country and countries with overrides
-  // Priority: selected (blue) > override (yellow) > hover (light blue) > default (white)
-  const overrideIso3List = Array.from(countriesWithOverrides);
-  
-  const borderColorExpression: any = [
-    'case',
-    ['==', ['get', 'iso_3166_1_alpha_3'], selectedIso3 || ''],
-    '#3b82f6', // blue for selected
-    // Check if country has an override (yellow)
-    ...(overrideIso3List.length > 0 
-      ? [['in', ['get', 'iso_3166_1_alpha_3'], ['literal', overrideIso3List]], '#eab308'] // yellow for overrides
-      : []),
-    ['==', ['get', 'iso_3166_1_alpha_3'], hoveredIso3 || ''],
-    '#60a5fa', // lighter blue for hover
-    '#ffffff' // default white
-  ];
+    const prevSelected = selectedIso3Ref.current;
+    if (prevSelected && prevSelected !== selectedIso3) setFeatureStateSafe(prevSelected, { selected: false });
+    if (selectedIso3) setFeatureStateSafe(selectedIso3, { selected: true });
+    selectedIso3Ref.current = selectedIso3 || null;
+  }, [selectedIso3, mapReady, setFeatureStateSafe]);
 
-  const borderWidthExpression: any = [
+  useEffect(() => {
+    if (!mapReady) return;
+
+    const next = countriesWithOverrides;
+    const prev = overridesIso3Ref.current;
+    const toUnset: string[] = [];
+    const toSet: string[] = [];
+
+    for (const iso3 of prev) if (!next.has(iso3)) toUnset.push(iso3);
+    for (const iso3 of next) if (!prev.has(iso3)) toSet.push(iso3);
+
+    applyInBatches(toUnset, (iso3) => setFeatureStateSafe(iso3, { hasOverride: false }), 80);
+    applyInBatches(toSet, (iso3) => setFeatureStateSafe(iso3, { hasOverride: true }), 80);
+
+    overridesIso3Ref.current = new Set(next);
+  }, [countriesWithOverrides, mapReady, applyInBatches, setFeatureStateSafe]);
+
+  // When the map becomes ready, apply the latest computed colors immediately.
+  useEffect(() => {
+    if (!mapReady) return;
+    const colors = colorsByIso3Ref.current;
+    const iso3List = Object.keys(colors);
+    if (iso3List.length === 0) return;
+    applyInBatches(
+      iso3List,
+      (iso3) => setFeatureStateSafe(iso3, { fillColor: colors[iso3] }),
+      60
+    );
+  }, [mapReady, applyInBatches, setFeatureStateSafe]);
+
+  const fillColorExpression: any = useMemo(() => ([
+    'coalesce',
+    ['feature-state', 'fillColor'],
+    '#1f2937',
+  ]), []);
+
+  const borderColorExpression: any = useMemo(() => ([
     'case',
-    ['==', ['get', 'iso_3166_1_alpha_3'], selectedIso3 || ''],
-    3, // thicker for selected
-    // Thicker border for countries with overrides
-    ...(overrideIso3List.length > 0 
-      ? [['in', ['get', 'iso_3166_1_alpha_3'], ['literal', overrideIso3List]], 2]
-      : []),
-    ['==', ['get', 'iso_3166_1_alpha_3'], hoveredIso3 || ''],
-    2, // medium for hover
-    1 // default
-  ];
+    ['boolean', ['feature-state', 'selected'], false],
+    '#3b82f6', // selected
+    ['boolean', ['feature-state', 'hasOverride'], false],
+    '#eab308', // override
+    ['boolean', ['feature-state', 'hovered'], false],
+    '#60a5fa', // hover
+    '#ffffff',
+  ]), []);
+
+  const borderWidthExpression: any = useMemo(() => ([
+    'case',
+    ['boolean', ['feature-state', 'selected'], false],
+    3,
+    ['boolean', ['feature-state', 'hasOverride'], false],
+    2,
+    ['boolean', ['feature-state', 'hovered'], false],
+    2,
+    1,
+  ]), []);
 
   return (
     <div className="relative w-full h-full">
@@ -267,6 +346,7 @@ export function WorldMap() {
       </div>
       
       <Map
+        ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{
           longitude: 0,
@@ -280,11 +360,13 @@ export function WorldMap() {
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
         cursor={hoveredCountry ? 'pointer' : 'grab'}
+        onLoad={() => setMapReady(true)}
       >
         <Source
           id="countries"
           type="vector"
           url="mapbox://mapbox.country-boundaries-v1"
+          promoteId={{ country_boundaries: 'iso_3166_1_alpha_3' }}
         >
           <Layer
             id="countries-fill"
@@ -294,9 +376,9 @@ export function WorldMap() {
               'fill-color': fillColorExpression,
               'fill-opacity': [
                 'case',
-                ['==', ['get', 'iso_3166_1_alpha_3'], selectedIso3 || ''],
+                ['boolean', ['feature-state', 'selected'], false],
                 0.9, // more opaque for selected
-                ['==', ['get', 'iso_3166_1_alpha_3'], hoveredIso3 || ''],
+                ['boolean', ['feature-state', 'hovered'], false],
                 0.85, // slightly more opaque for hover
                 0.7 // default
               ],
@@ -311,9 +393,9 @@ export function WorldMap() {
               'line-width': borderWidthExpression,
               'line-opacity': [
                 'case',
-                ['==', ['get', 'iso_3166_1_alpha_3'], selectedIso3 || ''],
+                ['boolean', ['feature-state', 'selected'], false],
                 1.0, // full opacity for selected
-                ['==', ['get', 'iso_3166_1_alpha_3'], hoveredIso3 || ''],
+                ['boolean', ['feature-state', 'hovered'], false],
                 0.8, // high opacity for hover
                 0.3 // default
               ],
